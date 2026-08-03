@@ -14,6 +14,21 @@ App de acompanhamento de treinos com foco em **consistência**: marque o que tre
 
 Os dados ficam salvos localmente no navegador (localStorage).
 
+## Ícone do app
+
+O ícone é um único arquivo: `public/favicon.svg` (fundo escuro e três barras, uma por tipo de treino). Para trocar, edite esse SVG e gere os PNGs de novo — iOS e Android não aceitam SVG no ícone da tela de início:
+
+```bash
+npx playwright@latest install chromium   # só na primeira vez
+node scripts/gerar-icones.mjs            # regenera os PNGs a partir do SVG
+```
+
+Isso atualiza `apple-touch-icon.png` (180x180, iOS), `icone-192.png` e `icone-512.png` (Android, via `manifest.webmanifest`).
+
+Mantenha o desenho dentro da area central (raio de ~205 num quadro de 512): o Android recorta as bordas em telas que usam icones circulares, e o sistema ja arredonda os cantos sozinho, entao o SVG e um quadrado sem borda arredondada.
+
+Depois de publicar, **remova e adicione o app a tela de inicio de novo**: o icone antigo fica em cache no aparelho.
+
 ## Desenvolvimento
 
 ```bash
