@@ -1,32 +1,22 @@
-# React + TypeScript + Vite
+# ConsistentFit
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+App de acompanhamento de treinos com foco em **consistência**: marque o que treinou, agende os próximos treinos e acompanhe seu progresso no ano.
 
-Currently, two official plugins are available:
+## Funcionalidades
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Calendário mensal** — marque cada dia com os tipos de treino feitos: **Força**, **Core** e **Aeróbico**. O dia fica colorido com uma, duas ou três cores.
+- **Agendamento** — agende um treino para qualquer dia, com repetição (semanal em dias escolhidos, quinzenal ou mensal). Dias com treino agendado ficam destacados no calendário, e o texto do treino abre ao clicar no dia.
+- **Biblioteca de treinos** — salve treinos padrão divididos em Aeróbico, Core e Força (peito, costas, ombro, bíceps, tríceps e membros inferiores) e reutilize-os ao agendar.
+- **Visão anual e metas** — total de dias treinados no ano (qualquer tipo conta como um dia), gráfico mensal por tipo, meta anual com barra de progresso e indicador de ritmo.
 
-## React Compiler
+Os dados ficam salvos localmente no navegador (localStorage).
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Desenvolvimento
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev     # servidor de desenvolvimento
+npm run build   # build de produção
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Stack: Vite + React + TypeScript.
