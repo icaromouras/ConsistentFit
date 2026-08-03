@@ -1,11 +1,12 @@
 import { useState } from "react";
-import type { Cat, TreinoSalvo } from "../types";
-import { C, FONTE, est } from "../theme";
+import type { Cat, Tipo, TreinoSalvo } from "../types";
+import { FONTE } from "../temas";
+import { useTema } from "../tema-ctx";
 import { uid } from "../dados";
 
-const GRUPOS: { rot: string; cor: string; cats: { id: Cat; rot: string }[] }[] = [
+const GRUPOS: { rot: string; tipo: Tipo; cats: { id: Cat; rot: string }[] }[] = [
   {
-    rot: "Força", cor: C.forca,
+    rot: "Força", tipo: "f",
     cats: [
       { id: "peito", rot: "Peito" },
       { id: "costas", rot: "Costas" },
@@ -15,8 +16,8 @@ const GRUPOS: { rot: string; cor: string; cats: { id: Cat; rot: string }[] }[] =
       { id: "inferiores", rot: "Membros inferiores" },
     ],
   },
-  { rot: "Core", cor: C.core, cats: [{ id: "core", rot: "Core" }] },
-  { rot: "Aeróbico", cor: C.aero, cats: [{ id: "aerobico", rot: "Aeróbico" }] },
+  { rot: "Core", tipo: "c", cats: [{ id: "core", rot: "Core" }] },
+  { rot: "Aeróbico", tipo: "a", cats: [{ id: "aerobico", rot: "Aeróbico" }] },
 ];
 
 interface Props {
@@ -27,6 +28,7 @@ interface Props {
 }
 
 export default function Biblioteca({ salvos, addSalvo, upSalvo, delSalvo }: Props) {
+  const { C, est, cor } = useTema();
   const [editando, setEditando] = useState<string | null>(null);
 
   const novo = (cat: Cat) => {
@@ -41,10 +43,12 @@ export default function Biblioteca({ salvos, addSalvo, upSalvo, delSalvo }: Prop
         Treinos padrão — edite uma vez, use quando quiser ao agendar
       </p>
 
-      {GRUPOS.map((g) => (
+      {GRUPOS.map((g) => {
+        const gcor = cor(g.tipo);
+        return (
         <div key={g.rot} style={{ marginBottom: 22 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-            <i style={{ width: 12, height: 12, borderRadius: 3, background: g.cor, display: "inline-block" }} />
+            <i style={{ width: 12, height: 12, borderRadius: 3, background: gcor, display: "inline-block" }} />
             <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.01em" }}>{g.rot}</span>
           </div>
 
@@ -67,7 +71,7 @@ export default function Biblioteca({ salvos, addSalvo, upSalvo, delSalvo }: Prop
 
                 {itens.map((s) =>
                   editando === s.id ? (
-                    <div key={s.id} style={{ ...est.card, padding: 12, marginBottom: 8, borderLeft: `3px solid ${g.cor}` }}>
+                    <div key={s.id} style={{ ...est.card, padding: 12, marginBottom: 8, borderLeft: `3px solid ${gcor}` }}>
                       <input
                         value={s.nome}
                         onChange={(e) => upSalvo(s.id, { nome: e.target.value })}
@@ -101,7 +105,7 @@ export default function Biblioteca({ salvos, addSalvo, upSalvo, delSalvo }: Prop
                       onClick={() => setEditando(s.id)}
                       style={{
                         display: "block", width: "100%", textAlign: "left", marginBottom: 6,
-                        background: C.panel, border: `1px solid ${C.line}`, borderLeft: `3px solid ${g.cor}`,
+                        background: C.panel, border: `1px solid ${C.line}`, borderLeft: `3px solid ${gcor}`,
                         borderRadius: 10, padding: "10px 12px", cursor: "pointer",
                         fontFamily: FONTE.sans, fontSize: 14, color: C.ink,
                       }}
@@ -119,7 +123,8 @@ export default function Biblioteca({ salvos, addSalvo, upSalvo, delSalvo }: Prop
             );
           })}
         </div>
-      ))}
+        );
+      })}
 
     </>
   );

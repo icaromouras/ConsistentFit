@@ -1,8 +1,10 @@
 import { useMemo } from "react";
-import type { Agendamento, Dados, DiaInfo } from "../types";
-import { C, FONTE, MESES, SEM, TIPOS, coresDoDia, est, fundoTipos } from "../theme";
+import type { Agendamento, Dados, DiaInfo, Tipo } from "../types";
+import { FONTE, MESES, SEM, fundoTipos } from "../temas";
+import { useTema } from "../tema-ctx";
 import { agendadosNoDia, iso } from "../dados";
 import PainelDia from "./PainelDia";
+import ResumoMes from "./ResumoMes";
 
 interface Props {
   dados: Dados;
@@ -19,6 +21,10 @@ interface Props {
 }
 
 export default function Mes({ dados, cursor, navegar, sel, setSel, setDia, addAg, upAg, delAg, totais, hojeIso }: Props) {
+  const { C, est, tema, tipos } = useTema();
+
+  const coresDoDia = (v?: DiaInfo): string[] => (v ? tipos.filter((t) => v[t.id]).map((t) => t.cor) : []);
+
   const grade = useMemo(() => {
     const primeiro = new Date(cursor.y, cursor.m, 1).getDay();
     const qtd = new Date(cursor.y, cursor.m + 1, 0).getDate();
@@ -76,7 +82,7 @@ export default function Mes({ dados, cursor, navegar, sel, setSel, setDia, addAg
               style={{
                 position: "relative", aspectRatio: "1", overflow: "hidden",
                 border: sel === k ? `2px solid ${C.ink}` : ehHoje ? `1.5px dashed ${C.soft}` : `1px solid ${C.line}`,
-                borderRadius: 10,
+                borderRadius: tema.raioP,
                 background: marcado ? fundoTipos(cores) : agendado ? C.agenda : C.panel,
                 color: marcado ? C.onDark : C.ink,
                 textShadow: marcado ? "0 1px 2px rgba(0,0,0,0.3)" : "none",
@@ -104,7 +110,7 @@ export default function Mes({ dados, cursor, navegar, sel, setSel, setDia, addAg
         <span style={{ ...est.eyebrow, fontSize: 9, display: "flex", alignItems: "center", gap: 5 }}>
           <i style={{ width: 9, height: 9, borderRadius: 2, background: C.agenda, border: `1px solid ${C.agendaInk}`, display: "inline-block" }} /> agendado
         </span>
-        {TIPOS.map((t) => (
+        {tipos.map((t) => (
           <span key={t.id} style={{ ...est.eyebrow, fontSize: 9, display: "flex", alignItems: "center", gap: 5 }}>
             <i style={{ width: 9, height: 9, borderRadius: 2, background: t.cor, display: "inline-block" }} /> {t.rot.toLowerCase()}
           </span>
@@ -125,15 +131,21 @@ export default function Mes({ dados, cursor, navegar, sel, setSel, setDia, addAg
         />
       )}
 
-      <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
-        {[...TIPOS.map((t) => ({ rot: t.rot, n: totais[t.id], cor: t.cor })), { rot: "Dias", n: totais.dias, cor: C.ink }].map((x) => (
-          <div key={x.rot} style={{ ...est.card, flex: 1, padding: "12px 10px", borderTop: `3px solid ${x.cor}` }}>
-            <div style={{ ...est.num, fontSize: 22 }}>{x.n}</div>
-            <div style={{ ...est.eyebrow, fontSize: 9, marginTop: 2 }}>{x.rot}</div>
-          </div>
-        ))}
+      <ResumoMes dados={dados} y={cursor.y} m={cursor.m} />
+
+      <div style={{ ...est.card, marginTop: 10, padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <div style={{ ...est.eyebrow, fontSize: 10 }}>acumulado de {cursor.y}</div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
+          {tipos.map((t) => (
+            <span key={t.id} style={{ ...est.num, fontSize: 13, display: "flex", alignItems: "center", gap: 4 }}>
+              <i style={{ width: 8, height: 8, borderRadius: 2, background: t.cor, display: "inline-block" }} />
+              {totais[t.id as Tipo]}
+            </span>
+          ))}
+          <span style={{ ...est.num, fontSize: 18 }}>{totais.dias}</span>
+          <span style={{ ...est.eyebrow, fontSize: 9 }}>dias</span>
+        </div>
       </div>
-      <p style={{ ...est.eyebrow, marginTop: 8, textAlign: "center" }}>acumulado de {cursor.y}</p>
     </>
   );
 }

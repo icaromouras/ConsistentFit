@@ -35,10 +35,17 @@ export interface TreinoSalvo {
   texto: string;
 }
 
+export type TemaId = "papel" | "carbono" | "nevoa" | "fita";
+
+/** Cores escolhidas pelo usuário; ausente = usa a cor padrão do tema. */
+export type Cores = Partial<Record<Tipo, string>>;
+
 export interface Dados {
   dias: Record<string, DiaInfo>;
   agendamentos: Agendamento[];
   salvos: TreinoSalvo[];
   metaAno: number;
   anotacoes: string;
+  tema: TemaId;
+  cores: Cores;
 }

@@ -1,4 +1,6 @@
-import { C, MES_CURTO, TIPOS, est } from "../theme";
+import type { Tipo } from "../types";
+import { MES_CURTO } from "../temas";
+import { useTema } from "../tema-ctx";
 
 export interface TotaisAno {
   f: number; c: number; a: number; dias: number;
@@ -16,6 +18,7 @@ interface Props {
 }
 
 export default function Ano({ totais, ano, mudarAno, metaAno, setMeta, anotacoes, setAnotacoes }: Props) {
+  const { C, est, tipos } = useTema();
   const hoje = new Date();
   const escala = Math.max(12, ...totais.porMes.map((x) => x.f + x.c + x.a));
   const pct = metaAno > 0 ? Math.min(100, (totais.dias / metaAno) * 100) : 0;
@@ -76,8 +79,8 @@ export default function Ano({ totais, ano, mudarAno, metaAno, setMeta, anotacoes
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: i < 11 ? `1px solid ${C.line}` : "none" }}>
             <div style={{ ...est.eyebrow, width: 28, fontSize: 11 }}>{MES_CURTO[i]}</div>
             <div style={{ flex: 1, display: "flex", gap: 2, height: 14, background: C.deep, borderRadius: 3, overflow: "hidden" }}>
-              {TIPOS.map((t) => v[t.id] > 0 && (
-                <div key={t.id} style={{ width: `${(v[t.id] / escala) * 100}%`, background: t.cor, borderRadius: 2 }} />
+              {tipos.map((t) => v[t.id as Tipo] > 0 && (
+                <div key={t.id} style={{ width: `${(v[t.id as Tipo] / escala) * 100}%`, background: t.cor, borderRadius: 2 }} />
               ))}
             </div>
             <div style={{ ...est.num, fontSize: 12, width: 30, textAlign: "right", color: v.dias ? C.ink : C.line }}>
@@ -88,7 +91,7 @@ export default function Ano({ totais, ano, mudarAno, metaAno, setMeta, anotacoes
       </div>
 
       <div style={{ display: "flex", gap: 14, marginTop: 12, flexWrap: "wrap" }}>
-        {TIPOS.map((t) => (
+        {tipos.map((t) => (
           <span key={t.id} style={{ ...est.eyebrow, display: "flex", alignItems: "center", gap: 6 }}>
             <i style={{ width: 10, height: 10, background: t.cor, borderRadius: 2, display: "inline-block" }} /> {t.rot.toLowerCase()}
           </span>
@@ -97,9 +100,9 @@ export default function Ano({ totais, ano, mudarAno, metaAno, setMeta, anotacoes
       </div>
 
       <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-        {TIPOS.map((t) => (
+        {tipos.map((t) => (
           <div key={t.id} style={{ ...est.card, flex: 1, padding: "12px 10px", borderTop: `3px solid ${t.cor}` }}>
-            <div style={{ ...est.num, fontSize: 22 }}>{totais[t.id]}</div>
+            <div style={{ ...est.num, fontSize: 22 }}>{totais[t.id as Tipo]}</div>
             <div style={{ ...est.eyebrow, fontSize: 9, marginTop: 2 }}>{t.rot}</div>
           </div>
         ))}

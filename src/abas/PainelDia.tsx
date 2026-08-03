@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Agendamento, DiaInfo, Repet, Tipo, TreinoSalvo } from "../types";
-import { C, DIA_CURTO, FONTE, MESES, SEM, TIPOS, chipEst, est } from "../theme";
+import { DIA_CURTO, FONTE, MESES, SEM } from "../temas";
+import { useTema } from "../tema-ctx";
 import { parseIso, uid } from "../dados";
 
 const ROT_REPET: Record<Repet, string> = {
@@ -32,24 +33,25 @@ interface Props {
 }
 
 export default function PainelDia({ k, dia, ags, salvos, setDia, addAg, upAg, delAg }: Props) {
+  const { C, est, chip, tipos } = useTema();
   const data = parseIso(k);
   const [criando, setCriando] = useState(false);
   const [texto, setTexto] = useState("");
-  const [tipos, setTipos] = useState<Tipo[]>([]);
+  const [tiposSel, setTiposSel] = useState<Tipo[]>([]);
   const [repet, setRepet] = useState<Repet>("nunca");
   const [diasSem, setDiasSem] = useState<number[]>([data.getDay()]);
 
   const togTipo = (t: Tipo) =>
-    setTipos((p) => (p.includes(t) ? p.filter((x) => x !== t) : [...p, t]));
+    setTiposSel((p) => (p.includes(t) ? p.filter((x) => x !== t) : [...p, t]));
   const togDiaSem = (d: number) =>
     setDiasSem((p) => (p.includes(d) ? p.filter((x) => x !== d) : [...p, d].sort()));
 
   const confirmar = () => {
     if (!texto.trim()) return;
-    addAg({ id: uid(), texto: texto.trim(), tipos, inicio: k, repet, diasSemana: diasSem });
+    addAg({ id: uid(), texto: texto.trim(), tipos: tiposSel, inicio: k, repet, diasSemana: diasSem });
     setCriando(false);
     setTexto("");
-    setTipos([]);
+    setTiposSel([]);
     setRepet("nunca");
     setDiasSem([data.getDay()]);
   };
@@ -59,7 +61,7 @@ export default function PainelDia({ k, dia, ags, salvos, setDia, addAg, upAg, de
     if (!s) return;
     setTexto(s.texto || s.nome);
     const t = CAT_TIPO[s.cat];
-    if (t && !tipos.includes(t)) setTipos((p) => [...p, t]);
+    if (t && !tiposSel.includes(t)) setTiposSel((p) => [...p, t]);
   };
 
   const rotuloRepet = (a: Agendamento) =>
@@ -74,8 +76,8 @@ export default function PainelDia({ k, dia, ags, salvos, setDia, addAg, upAg, de
       </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-        {TIPOS.map((t) => (
-          <button key={t.id} style={chipEst(!!dia[t.id], t.cor)} aria-pressed={!!dia[t.id]}
+        {tipos.map((t) => (
+          <button key={t.id} style={chip(!!dia[t.id], t.cor)} aria-pressed={!!dia[t.id]}
             onClick={() => setDia(k, { [t.id]: !dia[t.id] })}>
             {t.rot}
           </button>
@@ -99,7 +101,7 @@ export default function PainelDia({ k, dia, ags, salvos, setDia, addAg, upAg, de
                   {rotuloRepet(a)}
                   {a.tipos.length > 0 && " · "}
                   {a.tipos.map((t) => {
-                    const info = TIPOS.find((x) => x.id === t)!;
+                    const info = tipos.find((x) => x.id === t)!;
                     return (
                       <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 3, marginLeft: 5 }}>
                         <i style={{ width: 7, height: 7, borderRadius: 2, background: info.cor, display: "inline-block" }} />
@@ -164,10 +166,10 @@ export default function PainelDia({ k, dia, ags, salvos, setDia, addAg, upAg, de
           />
 
           <div style={{ display: "flex", gap: 6, margin: "10px 0" }}>
-            {TIPOS.map((t) => (
+            {tipos.map((t) => (
               <button key={t.id}
-                style={{ ...chipEst(tipos.includes(t.id), t.cor), padding: "8px 6px", fontSize: 11 }}
-                aria-pressed={tipos.includes(t.id)}
+                style={{ ...chip(tiposSel.includes(t.id), t.cor), padding: "8px 6px", fontSize: 11 }}
+                aria-pressed={tiposSel.includes(t.id)}
                 onClick={() => togTipo(t.id)}>
                 {t.rot}
               </button>

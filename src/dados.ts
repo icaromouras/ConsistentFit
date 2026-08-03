@@ -1,9 +1,12 @@
-import type { Agendamento, Cat, Dados, DiaInfo, Repet, Tipo, TreinoSalvo } from "./types";
+import type { Agendamento, Cat, Cores, Dados, DiaInfo, Repet, TemaId, Tipo, TreinoSalvo } from "./types";
 
 export const KEY = "consistentfit-v1";
 const KEY_ANTIGA = "treinos-v1";
 
-export const VAZIO: Dados = { dias: {}, agendamentos: [], salvos: [], metaAno: 0, anotacoes: "" };
+export const VAZIO: Dados = {
+  dias: {}, agendamentos: [], salvos: [], metaAno: 0, anotacoes: "",
+  tema: "papel", cores: {},
+};
 
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
@@ -16,7 +19,13 @@ export const parseIso = (k: string) =>
 export function carregar(): Dados {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return { ...VAZIO, ...(JSON.parse(raw) as Partial<Dados>) };
+    if (raw) {
+      const d = { ...VAZIO, ...(JSON.parse(raw) as Partial<Dados>) };
+      // um tema inválido (versão antiga, arquivo editado à mão) deixaria a tela sem cor
+      if (!["papel", "carbono", "nevoa", "fita"].includes(d.tema)) d.tema = VAZIO.tema;
+      if (typeof d.cores !== "object" || d.cores === null) d.cores = {};
+      return d;
+    }
 
     // migração do app antigo (musculação → força, cardio → aeróbico)
     const antigo = localStorage.getItem(KEY_ANTIGA);
@@ -71,6 +80,8 @@ const CHAVE_DIA = /^\d{4}-\d{2}-\d{2}$/;
 const REPETS: Repet[] = ["nunca", "semanal", "quinzenal", "mensal"];
 const TIPOS_VALIDOS: Tipo[] = ["f", "c", "a"];
 const CATS: Cat[] = ["aerobico", "core", "biceps", "triceps", "ombro", "costas", "peito", "inferiores"];
+const TEMAS_VALIDOS: TemaId[] = ["papel", "carbono", "nevoa", "fita"];
+const HEX = /^#[0-9a-fA-F]{6}$/;
 
 const ehObj = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
@@ -187,6 +198,14 @@ export function lerBackup(texto: string): ResultadoImport | null {
       ? Math.floor(raiz.metaAno)
       : 0;
 
+  const cores: Cores = {};
+  if (ehObj(raiz.cores)) {
+    TIPOS_VALIDOS.forEach((t) => {
+      const v = raiz.cores as Record<string, unknown>;
+      if (typeof v[t] === "string" && HEX.test(v[t] as string)) cores[t] = v[t] as string;
+    });
+  }
+
   return {
     dados: {
       dias,
@@ -194,6 +213,8 @@ export function lerBackup(texto: string): ResultadoImport | null {
       salvos,
       metaAno,
       anotacoes: typeof raiz.anotacoes === "string" ? raiz.anotacoes : "",
+      tema: TEMAS_VALIDOS.includes(raiz.tema as TemaId) ? (raiz.tema as TemaId) : "papel",
+      cores,
     },
     resumo: { dias: Object.keys(dias).length, agendamentos: agendamentos.length, salvos: salvos.length },
     descartados,

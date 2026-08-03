@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import type { Dados } from "../types";
-import { C, FONTE, est } from "../theme";
+import { FONTE } from "../temas";
+import { useTema } from "../tema-ctx";
 import { baixarBackup, lerBackup } from "../dados";
 
 interface Props {
@@ -14,6 +15,7 @@ type Aviso = { tipo: "ok" | "erro"; texto: string } | null;
 const plural = (n: number, sing: string, plur: string) => `${n} ${n === 1 ? sing : plur}`;
 
 export default function Ajustes({ dados, importar, apagarTudo }: Props) {
+  const { C, est } = useTema();
   const inputRef = useRef<HTMLInputElement>(null);
   const [aviso, setAviso] = useState<Aviso>(null);
 
