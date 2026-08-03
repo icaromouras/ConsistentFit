@@ -1,4 +1,4 @@
-import type { Agendamento, Dados, DiaInfo } from "./types";
+import type { Agendamento, Cat, Dados, DiaInfo, Repet, Tipo, TreinoSalvo } from "./types";
 
 export const KEY = "consistentfit-v1";
 const KEY_ANTIGA = "treinos-v1";
@@ -62,4 +62,140 @@ export function agendadosNoDia(ags: Agendamento[], k: string): Agendamento[] {
     const semanas = Math.round((inicioSemana(d).getTime() - inicioSemana(ini).getTime()) / 604800000);
     return semanas % 2 === 0;
   });
+}
+
+/* ---------- backup: exportar e importar ---------- */
+
+const VERSAO_BACKUP = 1;
+const CHAVE_DIA = /^\d{4}-\d{2}-\d{2}$/;
+const REPETS: Repet[] = ["nunca", "semanal", "quinzenal", "mensal"];
+const TIPOS_VALIDOS: Tipo[] = ["f", "c", "a"];
+const CATS: Cat[] = ["aerobico", "core", "biceps", "triceps", "ombro", "costas", "peito", "inferiores"];
+
+const ehObj = (v: unknown): v is Record<string, unknown> =>
+  typeof v === "object" && v !== null && !Array.isArray(v);
+
+export function nomeArquivoBackup(d = new Date()): string {
+  return `consistentfit-${iso(d.getFullYear(), d.getMonth(), d.getDate())}.json`;
+}
+
+export function baixarBackup(dados: Dados) {
+  const conteudo = JSON.stringify(
+    { app: "consistentfit", versao: VERSAO_BACKUP, exportadoEm: new Date().toISOString(), dados },
+    null,
+    2
+  );
+  const url = URL.createObjectURL(new Blob([conteudo], { type: "application/json" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nomeArquivoBackup();
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export interface ResultadoImport {
+  dados: Dados;
+  resumo: { dias: number; agendamentos: number; salvos: number };
+  descartados: number;
+}
+
+/** Lê um arquivo de backup, descartando entradas inválidas. Devolve null se o arquivo não for do app. */
+export function lerBackup(texto: string): ResultadoImport | null {
+  let bruto: unknown;
+  try {
+    bruto = JSON.parse(texto);
+  } catch {
+    return null;
+  }
+  if (!ehObj(bruto)) return null;
+
+  // aceita tanto o arquivo exportado quanto um dump direto do estado
+  const raiz = ehObj(bruto.dados) ? bruto.dados : bruto;
+  if (!["dias", "agendamentos", "salvos", "metaAno", "anotacoes"].some((k) => k in raiz)) return null;
+
+  let descartados = 0;
+  const ids = new Set<string>();
+  const idUnico = (v: unknown) => {
+    const base = typeof v === "string" && v.trim() && !ids.has(v) ? v : uid();
+    ids.add(base);
+    return base;
+  };
+
+  const dias: Record<string, DiaInfo> = {};
+  if (ehObj(raiz.dias)) {
+    Object.entries(raiz.dias).forEach(([k, v]) => {
+      if (!CHAVE_DIA.test(k) || !ehObj(v)) {
+        descartados++;
+        return;
+      }
+      const dia: DiaInfo = {};
+      if (v.f === true) dia.f = true;
+      if (v.c === true) dia.c = true;
+      if (v.a === true) dia.a = true;
+      if (typeof v.nota === "string" && v.nota.trim()) dia.nota = v.nota;
+      if (dia.f || dia.c || dia.a || dia.nota) dias[k] = dia;
+      else descartados++;
+    });
+  }
+
+  const agendamentos: Agendamento[] = [];
+  if (Array.isArray(raiz.agendamentos)) {
+    raiz.agendamentos.forEach((a) => {
+      if (!ehObj(a) || typeof a.texto !== "string" || typeof a.inicio !== "string" || !CHAVE_DIA.test(a.inicio)) {
+        descartados++;
+        return;
+      }
+      const repet = REPETS.includes(a.repet as Repet) ? (a.repet as Repet) : "nunca";
+      const diasSemana = Array.isArray(a.diasSemana)
+        ? a.diasSemana.filter((d): d is number => typeof d === "number" && d >= 0 && d <= 6)
+        : [];
+      agendamentos.push({
+        id: idUnico(a.id),
+        texto: a.texto,
+        tipos: Array.isArray(a.tipos) ? a.tipos.filter((t): t is Tipo => TIPOS_VALIDOS.includes(t as Tipo)) : [],
+        inicio: a.inicio,
+        repet,
+        // uma repetição semanal sem dias marcados nunca apareceria no calendário
+        diasSemana:
+          (repet === "semanal" || repet === "quinzenal") && diasSemana.length === 0
+            ? [parseIso(a.inicio).getDay()]
+            : diasSemana,
+      });
+    });
+  }
+
+  const salvos: TreinoSalvo[] = [];
+  if (Array.isArray(raiz.salvos)) {
+    raiz.salvos.forEach((s) => {
+      if (!ehObj(s) || !CATS.includes(s.cat as Cat)) {
+        descartados++;
+        return;
+      }
+      salvos.push({
+        id: idUnico(s.id),
+        cat: s.cat as Cat,
+        nome: typeof s.nome === "string" && s.nome.trim() ? s.nome : "Treino sem nome",
+        texto: typeof s.texto === "string" ? s.texto : "",
+      });
+    });
+  }
+
+  const metaAno =
+    typeof raiz.metaAno === "number" && Number.isFinite(raiz.metaAno) && raiz.metaAno > 0
+      ? Math.floor(raiz.metaAno)
+      : 0;
+
+  return {
+    dados: {
+      dias,
+      agendamentos,
+      salvos,
+      metaAno,
+      anotacoes: typeof raiz.anotacoes === "string" ? raiz.anotacoes : "",
+    },
+    resumo: { dias: Object.keys(dias).length, agendamentos: agendamentos.length, salvos: salvos.length },
+    descartados,
+  };
 }

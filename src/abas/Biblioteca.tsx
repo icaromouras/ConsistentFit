@@ -24,10 +24,9 @@ interface Props {
   addSalvo: (t: TreinoSalvo) => void;
   upSalvo: (id: string, patch: Partial<TreinoSalvo>) => void;
   delSalvo: (id: string) => void;
-  apagarTudo: () => void;
 }
 
-export default function Biblioteca({ salvos, addSalvo, upSalvo, delSalvo, apagarTudo }: Props) {
+export default function Biblioteca({ salvos, addSalvo, upSalvo, delSalvo }: Props) {
   const [editando, setEditando] = useState<string | null>(null);
 
   const novo = (cat: Cat) => {
@@ -122,12 +121,6 @@ export default function Biblioteca({ salvos, addSalvo, upSalvo, delSalvo, apagar
         </div>
       ))}
 
-      <button
-        onClick={() => { if (confirm("Apagar TODOS os dados do app (treinos, agendamentos, biblioteca e metas)?")) apagarTudo(); }}
-        style={{ ...est.ghost, marginTop: 20, width: "100%", padding: "11px" }}
-      >
-        Apagar tudo
-      </button>
     </>
   );
 }

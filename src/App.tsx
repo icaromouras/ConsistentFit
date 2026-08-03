@@ -5,12 +5,13 @@ import { VAZIO, carregar, iso, salvar } from "./dados";
 import Mes from "./abas/Mes";
 import Ano from "./abas/Ano";
 import Biblioteca from "./abas/Biblioteca";
+import Ajustes from "./abas/Ajustes";
 
 export default function App() {
   const hoje = new Date();
   const [dados, setDados] = useState<Dados>(carregar);
   const [erro, setErro] = useState(false);
-  const [aba, setAba] = useState<"mes" | "ano" | "treinos">("mes");
+  const [aba, setAba] = useState<"mes" | "ano" | "treinos" | "ajustes">("mes");
   const [cursor, setCursor] = useState({ y: hoje.getFullYear(), m: hoje.getMonth() });
   const [sel, setSel] = useState<string | null>(null);
 
@@ -111,6 +112,10 @@ export default function App() {
           .cel { transition: transform .12s ease; }
           .cel:active { transform: scale(.93); }
         }
+        /* !important: tabEst aplica fonte e espaçamento como estilo inline */
+        @media (max-width: 380px) {
+          .tab { font-size: 10px !important; letter-spacing: 0.04em !important; }
+        }
       `}</style>
 
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 4 }}>
@@ -122,8 +127,8 @@ export default function App() {
       <p style={{ ...est.eyebrow, margin: "0 0 16px", fontSize: 10 }}>constância antes de intensidade</p>
 
       <div style={{ display: "flex", gap: 4, background: C.deep, padding: 4, borderRadius: 11, marginBottom: 18 }}>
-        {([["mes", "Mês"], ["ano", "Ano"], ["treinos", "Treinos"]] as const).map(([k, l]) => (
-          <button key={k} style={tabEst(aba === k)} onClick={() => setAba(k)}>{l}</button>
+        {([["mes", "Mês"], ["ano", "Ano"], ["treinos", "Treinos"], ["ajustes", "Ajustes"]] as const).map(([k, l]) => (
+          <button key={k} className="tab" style={tabEst(aba === k)} onClick={() => setAba(k)}>{l}</button>
         ))}
       </div>
 
@@ -156,12 +161,20 @@ export default function App() {
       )}
 
       {aba === "treinos" && (
-        <Biblioteca
-          salvos={dados.salvos}
-          addSalvo={addSalvo}
-          upSalvo={upSalvo}
-          delSalvo={delSalvo}
-          apagarTudo={() => setDados(VAZIO)}
+        <Biblioteca salvos={dados.salvos} addSalvo={addSalvo} upSalvo={upSalvo} delSalvo={delSalvo} />
+      )}
+
+      {aba === "ajustes" && (
+        <Ajustes
+          dados={dados}
+          importar={(d) => {
+            setSel(null);
+            setDados(d);
+          }}
+          apagarTudo={() => {
+            setSel(null);
+            setDados(VAZIO);
+          }}
         />
       )}
 
