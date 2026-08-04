@@ -3,6 +3,7 @@ import type { Cat, Tipo, TreinoSalvo } from "../types";
 import { FONTE } from "../temas";
 import { useTema } from "../tema-ctx";
 import { uid } from "../dados";
+import ModalTreino from "./ModalTreino";
 
 const GRUPOS: { rot: string; tipo: Tipo; cats: { id: Cat; rot: string }[] }[] = [
   {
@@ -30,6 +31,11 @@ interface Props {
 export default function Biblioteca({ salvos, addSalvo, upSalvo, delSalvo }: Props) {
   const { C, est, cor } = useTema();
   const [editando, setEditando] = useState<string | null>(null);
+  const [aberto, setAberto] = useState<string | null>(null);
+
+  const salvoAberto = aberto ? salvos.find((s) => s.id === aberto) : undefined;
+  const grupoDe = (cat: Cat) => GRUPOS.find((g) => g.cats.some((c) => c.id === cat))!;
+  const rotuloCat = (cat: Cat) => grupoDe(cat).cats.find((c) => c.id === cat)!.rot;
 
   const novo = (cat: Cat) => {
     const t: TreinoSalvo = { id: uid(), cat, nome: "Novo treino", texto: "" };
@@ -92,6 +98,12 @@ export default function Biblioteca({ salvos, addSalvo, upSalvo, delSalvo }: Prop
                           Pronto
                         </button>
                         <button
+                          style={{ ...est.ghost, color: C.ink, borderColor: C.ink }}
+                          onClick={() => setAberto(s.id)}
+                        >
+                          abrir
+                        </button>
+                        <button
                           style={{ ...est.ghost, color: C.aero, borderColor: C.aero }}
                           onClick={() => { if (confirm(`Excluir "${s.nome}"?`)) { delSalvo(s.id); setEditando(null); } }}
                         >
@@ -126,6 +138,21 @@ export default function Biblioteca({ salvos, addSalvo, upSalvo, delSalvo }: Prop
         );
       })}
 
+      {salvoAberto && (
+        <ModalTreino
+          titulo={salvoAberto.nome}
+          subtitulo={
+            <span style={{ ...est.eyebrow, fontSize: 10, display: "inline-flex", alignItems: "center", gap: 5 }}>
+              <i style={{ width: 8, height: 8, borderRadius: 2, background: cor(grupoDe(salvoAberto.cat).tipo), display: "inline-block" }} />
+              {grupoDe(salvoAberto.cat).rot}
+              {rotuloCat(salvoAberto.cat) !== grupoDe(salvoAberto.cat).rot && ` · ${rotuloCat(salvoAberto.cat)}`}
+            </span>
+          }
+          texto={salvoAberto.texto}
+          onChange={(t) => upSalvo(salvoAberto.id, { texto: t })}
+          onFechar={() => setAberto(null)}
+        />
+      )}
     </>
   );
 }
