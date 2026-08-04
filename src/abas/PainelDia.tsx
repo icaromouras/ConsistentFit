@@ -3,6 +3,7 @@ import type { Agendamento, DiaInfo, Repet, Tipo, TreinoSalvo } from "../types";
 import { DIA_CURTO, FONTE, MESES, SEM } from "../temas";
 import { useTema } from "../tema-ctx";
 import { parseIso, uid } from "../dados";
+import ModalTreino from "./ModalTreino";
 
 const ROT_REPET: Record<Repet, string> = {
   nunca: "não repete",
@@ -40,6 +41,7 @@ export default function PainelDia({ k, dia, ags, salvos, setDia, addAg, upAg, de
   const [tiposSel, setTiposSel] = useState<Tipo[]>([]);
   const [repet, setRepet] = useState<Repet>("nunca");
   const [diasSem, setDiasSem] = useState<number[]>([data.getDay()]);
+  const [aberto, setAberto] = useState<string | null>(null);
 
   const togTipo = (t: Tipo) =>
     setTiposSel((p) => (p.includes(t) ? p.filter((x) => x !== t) : [...p, t]));
@@ -69,6 +71,25 @@ export default function PainelDia({ k, dia, ags, salvos, setDia, addAg, upAg, de
       ? `${ROT_REPET[a.repet]} · ${a.diasSemana.map((d) => DIA_CURTO[d]).join(", ")}`
       : ROT_REPET[a.repet];
 
+  // usado no card e no cabeçalho do modal
+  const metaAgendamento = (a: Agendamento) => (
+    <span style={{ ...est.eyebrow, color: C.agendaInk, fontSize: 10 }}>
+      {rotuloRepet(a)}
+      {a.tipos.length > 0 && " · "}
+      {a.tipos.map((t) => {
+        const info = tipos.find((x) => x.id === t)!;
+        return (
+          <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 3, marginLeft: 5 }}>
+            <i style={{ width: 7, height: 7, borderRadius: 2, background: info.cor, display: "inline-block" }} />
+            {info.rot.toLowerCase()}
+          </span>
+        );
+      })}
+    </span>
+  );
+
+  const agAberto = aberto ? ags.find((a) => a.id === aberto) : undefined;
+
   return (
     <div style={{ ...est.card, marginTop: 16 }}>
       <div style={{ ...est.eyebrow, marginBottom: 12 }}>
@@ -96,31 +117,27 @@ export default function PainelDia({ k, dia, ags, salvos, setDia, addAg, upAg, de
           <div style={{ ...est.eyebrow, marginBottom: 8 }}>Treino agendado</div>
           {ags.map((a) => (
             <div key={a.id} style={{ background: C.agenda, border: `1px solid ${C.line}`, borderRadius: 12, padding: 12, marginBottom: 8 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
-                <span style={{ ...est.eyebrow, color: C.agendaInk, fontSize: 10 }}>
-                  {rotuloRepet(a)}
-                  {a.tipos.length > 0 && " · "}
-                  {a.tipos.map((t) => {
-                    const info = tipos.find((x) => x.id === t)!;
-                    return (
-                      <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 3, marginLeft: 5 }}>
-                        <i style={{ width: 7, height: 7, borderRadius: 2, background: info.cor, display: "inline-block" }} />
-                        {info.rot.toLowerCase()}
-                      </span>
-                    );
-                  })}
-                </span>
-                <button
-                  style={{ ...est.ghost, padding: "4px 8px", fontSize: 10 }}
-                  onClick={() => {
-                    const msg = a.repet === "nunca"
-                      ? "Excluir este treino agendado?"
-                      : "Excluir este treino agendado e todas as repetições?";
-                    if (confirm(msg)) delAg(a.id);
-                  }}
-                >
-                  excluir
-                </button>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+                {metaAgendamento(a)}
+                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                  <button
+                    style={{ ...est.ghost, padding: "4px 10px", fontSize: 10, color: C.ink, borderColor: C.ink }}
+                    onClick={() => setAberto(a.id)}
+                  >
+                    abrir
+                  </button>
+                  <button
+                    style={{ ...est.ghost, padding: "4px 8px", fontSize: 10 }}
+                    onClick={() => {
+                      const msg = a.repet === "nunca"
+                        ? "Excluir este treino agendado?"
+                        : "Excluir este treino agendado e todas as repetições?";
+                      if (confirm(msg)) delAg(a.id);
+                    }}
+                  >
+                    excluir
+                  </button>
+                </div>
               </div>
               <textarea
                 value={a.texto}
@@ -224,6 +241,16 @@ export default function PainelDia({ k, dia, ags, salvos, setDia, addAg, upAg, de
             <button style={est.ghost} onClick={() => setCriando(false)}>cancelar</button>
           </div>
         </div>
+      )}
+
+      {agAberto && (
+        <ModalTreino
+          titulo={`${data.getDate()} de ${MESES[data.getMonth()]}`}
+          subtitulo={metaAgendamento(agAberto)}
+          texto={agAberto.texto}
+          onChange={(t) => upAg(agAberto.id, { texto: t })}
+          onFechar={() => setAberto(null)}
+        />
       )}
     </div>
   );
