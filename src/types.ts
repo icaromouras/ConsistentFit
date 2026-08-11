@@ -26,7 +26,8 @@ export type Cat =
   | "ombro"
   | "costas"
   | "peito"
-  | "inferiores";
+  | "inferiores"
+  | "mobilidade";
 
 export interface TreinoSalvo {
   id: string;

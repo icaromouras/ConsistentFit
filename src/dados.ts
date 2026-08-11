@@ -80,8 +80,8 @@ const VERSAO_BACKUP = 1;
 const CHAVE_DIA = /^\d{4}-\d{2}-\d{2}$/;
 const REPETS: Repet[] = ["nunca", "semanal", "quinzenal", "mensal"];
 const TIPOS_VALIDOS: Tipo[] = ["f", "c", "a"];
-const CATS: Cat[] = ["aerobico", "core", "biceps", "triceps", "ombro", "costas", "peito", "inferiores"];
-const AREAS_EX: AreaEx[] = ["inferiores", "core", "peito", "ombro", "biceps", "triceps", "costas"];
+const CATS: Cat[] = ["aerobico", "core", "biceps", "triceps", "ombro", "costas", "peito", "inferiores", "mobilidade"];
+const AREAS_EX: AreaEx[] = ["inferiores", "core", "peito", "ombro", "biceps", "triceps", "costas", "mobilidade"];
 const TEMAS_VALIDOS: TemaId[] = ["papel", "carbono", "nevoa", "fita"];
 const HEX = /^#[0-9a-fA-F]{6}$/;
 

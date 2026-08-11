@@ -5,7 +5,7 @@ import { useTema } from "../tema-ctx";
 import { uid } from "../dados";
 import ModalTreino from "./ModalTreino";
 
-const GRUPOS: { rot: string; tipo: Tipo; cats: { id: Cat; rot: string }[] }[] = [
+const GRUPOS: { rot: string; tipo: Tipo | null; cats: { id: Cat; rot: string }[] }[] = [
   {
     rot: "Força", tipo: "f",
     cats: [
@@ -19,6 +19,7 @@ const GRUPOS: { rot: string; tipo: Tipo; cats: { id: Cat; rot: string }[] }[] = 
   },
   { rot: "Core", tipo: "c", cats: [{ id: "core", rot: "Core" }] },
   { rot: "Aeróbico", tipo: "a", cats: [{ id: "aerobico", rot: "Aeróbico" }] },
+  { rot: "Mobilidade", tipo: null, cats: [{ id: "mobilidade", rot: "Mobilidade" }] },
 ];
 
 interface Props {
@@ -50,7 +51,7 @@ export default function Biblioteca({ salvos, addSalvo, upSalvo, delSalvo }: Prop
       </p>
 
       {GRUPOS.map((g) => {
-        const gcor = cor(g.tipo);
+        const gcor = g.tipo ? cor(g.tipo) : C.soft;
         return (
         <div key={g.rot} style={{ marginBottom: 22 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
@@ -143,7 +144,7 @@ export default function Biblioteca({ salvos, addSalvo, upSalvo, delSalvo }: Prop
           titulo={salvoAberto.nome}
           subtitulo={
             <span style={{ ...est.eyebrow, fontSize: 10, display: "inline-flex", alignItems: "center", gap: 5 }}>
-              <i style={{ width: 8, height: 8, borderRadius: 2, background: cor(grupoDe(salvoAberto.cat).tipo), display: "inline-block" }} />
+              <i style={{ width: 8, height: 8, borderRadius: 2, background: grupoDe(salvoAberto.cat).tipo ? cor(grupoDe(salvoAberto.cat).tipo!) : C.soft, display: "inline-block" }} />
               {grupoDe(salvoAberto.cat).rot}
               {rotuloCat(salvoAberto.cat) !== grupoDe(salvoAberto.cat).rot && ` · ${rotuloCat(salvoAberto.cat)}`}
             </span>

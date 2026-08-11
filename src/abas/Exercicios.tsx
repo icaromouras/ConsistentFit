@@ -12,7 +12,12 @@ export const AREAS: { id: AreaEx; rot: string }[] = [
   { id: "biceps", rot: "Bíceps" },
   { id: "triceps", rot: "Tríceps" },
   { id: "costas", rot: "Costas" },
+  { id: "mobilidade", rot: "Mobilidade" },
 ];
+
+/** Mobilidade não é força/core/aeróbico: usa tom neutro em vez da cor de um tipo. */
+export const tipoDaArea = (a: AreaEx): "f" | "c" | null =>
+  a === "mobilidade" ? null : a === "core" ? "c" : "f";
 
 export const rotuloArea = (a: AreaEx) => AREAS.find((x) => x.id === a)!.rot;
 
@@ -41,7 +46,8 @@ export default function Exercicios({ exercicios, addEx, upEx, delEx }: Props) {
 
       {AREAS.map((area) => {
         const itens = exercicios.filter((e) => e.area === area.id);
-        const corArea = cor(area.id === "core" ? "c" : "f");
+        const t = tipoDaArea(area.id);
+        const corArea = t ? cor(t) : C.soft;
         return (
           <div key={area.id} style={{ marginBottom: 18 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>

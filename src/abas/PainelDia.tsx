@@ -4,7 +4,7 @@ import { DIA_CURTO, FONTE, MESES, SEM } from "../temas";
 import { useTema } from "../tema-ctx";
 import { parseIso, uid } from "../dados";
 import ModalTreino from "./ModalTreino";
-import { AREAS } from "./Exercicios";
+import { AREAS, tipoDaArea } from "./Exercicios";
 
 const ROT_REPET: Record<Repet, string> = {
   nunca: "não repete",
@@ -21,6 +21,7 @@ const CAT_TIPO: Record<string, Tipo> = {
 const CAT_ROT: Record<string, string> = {
   aerobico: "Aeróbico", core: "Core", biceps: "Bíceps", triceps: "Tríceps",
   ombro: "Ombro", costas: "Costas", peito: "Peito", inferiores: "Membros inferiores",
+  mobilidade: "Mobilidade",
 };
 
 interface Props {
@@ -64,8 +65,8 @@ export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, add
 
   const addExercicio = (e: Exercicio) => {
     setTexto((p) => (p && !p.endsWith("\n") ? p + "\n" : p) + e.nome + " — ");
-    const t: Tipo = e.area === "core" ? "c" : "f";
-    if (!tiposSel.includes(t)) setTiposSel((prev) => [...prev, t]);
+    const t = tipoDaArea(e.area);
+    if (t && !tiposSel.includes(t)) setTiposSel((prev) => [...prev, t]);
   };
 
   const usarSalvo = (id: string) => {
