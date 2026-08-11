@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Agendamento, Cores, Dados, DiaInfo, TemaId, Tipo, TreinoSalvo } from "./types";
+import type { Agendamento, Cores, Dados, DiaInfo, Exercicio, TemaId, Tipo, TreinoSalvo } from "./types";
 import { FONTE } from "./temas";
 import { TemaCtx, montarCtx } from "./tema-ctx";
 import { VAZIO, carregar, iso, salvar } from "./dados";
@@ -8,6 +8,7 @@ import Ano from "./abas/Ano";
 import Biblioteca from "./abas/Biblioteca";
 import Ajustes from "./abas/Ajustes";
 import Aparencia from "./abas/Aparencia";
+import Exercicios from "./abas/Exercicios";
 
 export default function App() {
   const hoje = new Date();
@@ -16,6 +17,7 @@ export default function App() {
   const [aba, setAba] = useState<"mes" | "ano" | "treinos" | "tema" | "dados">("mes");
   const [cursor, setCursor] = useState({ y: hoje.getFullYear(), m: hoje.getMonth() });
   const [sel, setSel] = useState<string | null>(null);
+  const [subTreinos, setSubTreinos] = useState<"salvos" | "exercicios">("salvos");
 
   const dadosRef = useRef(dados);
 
@@ -85,6 +87,13 @@ export default function App() {
     setDados((p) => ({ ...p, salvos: p.salvos.map((s) => (s.id === id ? { ...s, ...patch } : s)) })), []);
   const delSalvo = useCallback((id: string) =>
     setDados((p) => ({ ...p, salvos: p.salvos.filter((s) => s.id !== id) })), []);
+
+  const addEx = useCallback((e: Exercicio) =>
+    setDados((p) => ({ ...p, exercicios: [...p.exercicios, e] })), []);
+  const upEx = useCallback((id: string, patch: Partial<Exercicio>) =>
+    setDados((p) => ({ ...p, exercicios: p.exercicios.map((e) => (e.id === id ? { ...e, ...patch } : e)) })), []);
+  const delEx = useCallback((id: string) =>
+    setDados((p) => ({ ...p, exercicios: p.exercicios.filter((e) => e.id !== id) })), []);
 
   const setTema = useCallback((t: TemaId) => setDados((p) => ({ ...p, tema: t })), []);
   const setCor = useCallback((t: Tipo, cor: string | null) => {
@@ -183,7 +192,20 @@ export default function App() {
         )}
 
         {aba === "treinos" && (
-          <Biblioteca salvos={dados.salvos} addSalvo={addSalvo} upSalvo={upSalvo} delSalvo={delSalvo} />
+          <>
+            <div style={{ display: "flex", gap: 3, background: C.deep, padding: 3, borderRadius: ctx.tema.raioP, marginBottom: 16, maxWidth: 300 }}>
+              {([["salvos", "Treinos"], ["exercicios", "Exercícios"]] as const).map(([k, l]) => (
+                <button key={k} style={{ ...tab(subTreinos === k), padding: "7px 0", fontSize: 11 }} onClick={() => setSubTreinos(k)}>
+                  {l}
+                </button>
+              ))}
+            </div>
+            {subTreinos === "salvos" ? (
+              <Biblioteca salvos={dados.salvos} addSalvo={addSalvo} upSalvo={upSalvo} delSalvo={delSalvo} />
+            ) : (
+              <Exercicios exercicios={dados.exercicios} addEx={addEx} upEx={upEx} delEx={delEx} />
+            )}
+          </>
         )}
 
         {aba === "tema" && (

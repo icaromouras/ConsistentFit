@@ -1,9 +1,10 @@
 import { useState } from "react";
-import type { Agendamento, DiaInfo, Repet, Tipo, TreinoSalvo } from "../types";
+import type { Agendamento, AreaEx, DiaInfo, Exercicio, Repet, Tipo, TreinoSalvo } from "../types";
 import { DIA_CURTO, FONTE, MESES, SEM } from "../temas";
 import { useTema } from "../tema-ctx";
 import { parseIso, uid } from "../dados";
 import ModalTreino from "./ModalTreino";
+import { AREAS } from "./Exercicios";
 
 const ROT_REPET: Record<Repet, string> = {
   nunca: "não repete",
@@ -27,13 +28,14 @@ interface Props {
   dia: DiaInfo;
   ags: Agendamento[];
   salvos: TreinoSalvo[];
+  exercicios: Exercicio[];
   setDia: (k: string, patch: Partial<DiaInfo>) => void;
   addAg: (a: Agendamento) => void;
   upAg: (id: string, patch: Partial<Agendamento>) => void;
   delAg: (id: string) => void;
 }
 
-export default function PainelDia({ k, dia, ags, salvos, setDia, addAg, upAg, delAg }: Props) {
+export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, addAg, upAg, delAg }: Props) {
   const { C, est, chip, tipos } = useTema();
   const data = parseIso(k);
   const [criando, setCriando] = useState(false);
@@ -42,6 +44,8 @@ export default function PainelDia({ k, dia, ags, salvos, setDia, addAg, upAg, de
   const [repet, setRepet] = useState<Repet>("nunca");
   const [diasSem, setDiasSem] = useState<number[]>([data.getDay()]);
   const [aberto, setAberto] = useState<string | null>(null);
+  const [montando, setMontando] = useState(false);
+  const [areaAberta, setAreaAberta] = useState<AreaEx | null>(null);
 
   const togTipo = (t: Tipo) =>
     setTiposSel((p) => (p.includes(t) ? p.filter((x) => x !== t) : [...p, t]));
@@ -56,6 +60,12 @@ export default function PainelDia({ k, dia, ags, salvos, setDia, addAg, upAg, de
     setTiposSel([]);
     setRepet("nunca");
     setDiasSem([data.getDay()]);
+  };
+
+  const addExercicio = (e: Exercicio) => {
+    setTexto((p) => (p && !p.endsWith("\n") ? p + "\n" : p) + e.nome + " — ");
+    const t: Tipo = e.area === "core" ? "c" : "f";
+    if (!tiposSel.includes(t)) setTiposSel((prev) => [...prev, t]);
   };
 
   const usarSalvo = (id: string) => {
@@ -181,6 +191,70 @@ export default function PainelDia({ k, dia, ags, salvos, setDia, addAg, upAg, de
             placeholder={"Descreva o treino\n(ex: supino 4x8, crucifixo 3x12…)"}
             style={{ ...est.area, minHeight: 80 }}
           />
+
+          <button
+            style={{ ...est.ghost, width: "100%", marginTop: 8, padding: "9px", borderStyle: "dashed", color: montando ? C.ink : C.soft, borderColor: montando ? C.ink : C.line }}
+            aria-expanded={montando}
+            onClick={() => setMontando((m) => !m)}
+          >
+            {montando ? "− fechar exercícios" : "+ montar com exercícios"}
+          </button>
+
+          {montando && (
+            <div style={{ marginTop: 8, border: `1px solid ${C.line}`, borderRadius: 10, overflow: "hidden" }}>
+              {exercicios.length === 0 && (
+                <p style={{ ...est.eyebrow, fontSize: 10, lineHeight: 1.6, margin: 0, padding: 12 }}>
+                  Nenhum exercício cadastrado ainda. Cadastre em Treinos → Exercícios e eles aparecem aqui para montar o treino com um toque.
+                </p>
+              )}
+              {AREAS.map((area) => {
+                const itens = exercicios.filter((e) => e.area === area.id);
+                if (itens.length === 0) return null;
+                const abertaEsta = areaAberta === area.id;
+                return (
+                  <div key={area.id} style={{ borderBottom: `1px solid ${C.line}` }}>
+                    <button
+                      aria-expanded={abertaEsta}
+                      onClick={() => setAreaAberta(abertaEsta ? null : area.id)}
+                      style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        width: "100%", padding: "9px 12px", border: "none", cursor: "pointer",
+                        background: abertaEsta ? C.deep : "transparent",
+                        fontFamily: FONTE.mono, fontSize: 11, letterSpacing: "0.08em",
+                        textTransform: "uppercase", color: C.ink,
+                      }}
+                    >
+                      <span>{area.rot}</span>
+                      <span style={{ color: C.soft }}>{itens.length} {abertaEsta ? "−" : "+"}</span>
+                    </button>
+                    {abertaEsta && (
+                      <div style={{ padding: "8px 10px", display: "flex", flexWrap: "wrap", gap: 6 }}>
+                        {itens.map((e) => (
+                          <button
+                            key={e.id}
+                            title={e.obs || undefined}
+                            onClick={() => addExercicio(e)}
+                            style={{
+                              padding: "7px 11px", borderRadius: 8, border: `1px solid ${C.line}`,
+                              background: C.panel, color: C.ink, fontFamily: FONTE.sans,
+                              fontSize: 13, cursor: "pointer",
+                            }}
+                          >
+                            + {e.nome}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {exercicios.length > 0 && (
+                <p style={{ ...est.eyebrow, fontSize: 9, margin: 0, padding: "7px 12px", lineHeight: 1.5 }}>
+                  toque para adicionar ao treino — depois complete com séries e repetições no texto
+                </p>
+              )}
+            </div>
+          )}
 
           <div style={{ display: "flex", gap: 6, margin: "10px 0" }}>
             {tipos.map((t) => (

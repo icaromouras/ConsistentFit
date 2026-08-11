@@ -35,6 +35,16 @@ export interface TreinoSalvo {
   texto: string;
 }
 
+/** Áreas do catálogo de exercícios: as categorias de treino salvo, menos o aeróbico. */
+export type AreaEx = Exclude<Cat, "aerobico">;
+
+export interface Exercicio {
+  id: string;
+  area: AreaEx;
+  nome: string;
+  obs?: string; // dica de execução, opcional
+}
+
 export type TemaId = "papel" | "carbono" | "nevoa" | "fita";
 
 /** Cores escolhidas pelo usuário; ausente = usa a cor padrão do tema. */
@@ -44,6 +54,7 @@ export interface Dados {
   dias: Record<string, DiaInfo>;
   agendamentos: Agendamento[];
   salvos: TreinoSalvo[];
+  exercicios: Exercicio[];
   metaAno: number;
   anotacoes: string;
   tema: TemaId;

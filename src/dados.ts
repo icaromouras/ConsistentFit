@@ -1,10 +1,10 @@
-import type { Agendamento, Cat, Cores, Dados, DiaInfo, Repet, TemaId, Tipo, TreinoSalvo } from "./types";
+import type { Agendamento, AreaEx, Cat, Cores, Dados, DiaInfo, Exercicio, Repet, TemaId, Tipo, TreinoSalvo } from "./types";
 
 export const KEY = "consistentfit-v1";
 const KEY_ANTIGA = "treinos-v1";
 
 export const VAZIO: Dados = {
-  dias: {}, agendamentos: [], salvos: [], metaAno: 0, anotacoes: "",
+  dias: {}, agendamentos: [], salvos: [], exercicios: [], metaAno: 0, anotacoes: "",
   tema: "papel", cores: {},
 };
 
@@ -24,6 +24,7 @@ export function carregar(): Dados {
       // um tema inválido (versão antiga, arquivo editado à mão) deixaria a tela sem cor
       if (!["papel", "carbono", "nevoa", "fita"].includes(d.tema)) d.tema = VAZIO.tema;
       if (typeof d.cores !== "object" || d.cores === null) d.cores = {};
+      if (!Array.isArray(d.exercicios)) d.exercicios = [];
       return d;
     }
 
@@ -80,6 +81,7 @@ const CHAVE_DIA = /^\d{4}-\d{2}-\d{2}$/;
 const REPETS: Repet[] = ["nunca", "semanal", "quinzenal", "mensal"];
 const TIPOS_VALIDOS: Tipo[] = ["f", "c", "a"];
 const CATS: Cat[] = ["aerobico", "core", "biceps", "triceps", "ombro", "costas", "peito", "inferiores"];
+const AREAS_EX: AreaEx[] = ["inferiores", "core", "peito", "ombro", "biceps", "triceps", "costas"];
 const TEMAS_VALIDOS: TemaId[] = ["papel", "carbono", "nevoa", "fita"];
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
@@ -198,6 +200,22 @@ export function lerBackup(texto: string): ResultadoImport | null {
       ? Math.floor(raiz.metaAno)
       : 0;
 
+  const exercicios: Exercicio[] = [];
+  if (Array.isArray(raiz.exercicios)) {
+    raiz.exercicios.forEach((e) => {
+      if (!ehObj(e) || !AREAS_EX.includes(e.area as AreaEx) || typeof e.nome !== "string" || !e.nome.trim()) {
+        descartados++;
+        return;
+      }
+      exercicios.push({
+        id: idUnico(e.id),
+        area: e.area as AreaEx,
+        nome: e.nome,
+        obs: typeof e.obs === "string" && e.obs.trim() ? e.obs : undefined,
+      });
+    });
+  }
+
   const cores: Cores = {};
   if (ehObj(raiz.cores)) {
     TIPOS_VALIDOS.forEach((t) => {
@@ -211,6 +229,7 @@ export function lerBackup(texto: string): ResultadoImport | null {
       dias,
       agendamentos,
       salvos,
+      exercicios,
       metaAno,
       anotacoes: typeof raiz.anotacoes === "string" ? raiz.anotacoes : "",
       tema: TEMAS_VALIDOS.includes(raiz.tema as TemaId) ? (raiz.tema as TemaId) : "papel",

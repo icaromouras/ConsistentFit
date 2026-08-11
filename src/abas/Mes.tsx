@@ -124,6 +124,7 @@ export default function Mes({ dados, cursor, navegar, sel, setSel, setDia, addAg
           dia={selVal}
           ags={selAgs}
           salvos={dados.salvos}
+          exercicios={dados.exercicios}
           setDia={setDia}
           addAg={addAg}
           upAg={upAg}
