@@ -4,7 +4,7 @@ import { DIA_CURTO, FONTE, MESES, SEM } from "../temas";
 import { useTema } from "../tema-ctx";
 import { parseIso, uid } from "../dados";
 import ModalTreino from "./ModalTreino";
-import { AREAS, tipoDaArea } from "./Exercicios";
+import { AREAS, inserirNoTexto, tipoDaArea } from "./Exercicios";
 
 const ROT_REPET: Record<Repet, string> = {
   nunca: "não repete",
@@ -64,7 +64,7 @@ export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, add
   };
 
   const addExercicio = (e: Exercicio) => {
-    setTexto((p) => (p && !p.endsWith("\n") ? p + "\n" : p) + e.nome + " — ");
+    setTexto((p) => inserirNoTexto(p, e.area, e.nome));
     const t = tipoDaArea(e.area);
     if (t && !tiposSel.includes(t)) setTiposSel((prev) => [...prev, t]);
   };
@@ -251,7 +251,7 @@ export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, add
               })}
               {exercicios.length > 0 && (
                 <p style={{ ...est.eyebrow, fontSize: 9, margin: 0, padding: "7px 12px", lineHeight: 1.5 }}>
-                  toque para adicionar ao treino — depois complete com séries e repetições no texto
+                  toque para adicionar — o treino é agrupado por área; complete com séries e repetições no texto
                 </p>
               )}
             </div>

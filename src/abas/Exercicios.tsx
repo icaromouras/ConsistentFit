@@ -19,6 +19,32 @@ export const AREAS: { id: AreaEx; rot: string }[] = [
 export const tipoDaArea = (a: AreaEx): "f" | "c" | null =>
   a === "mobilidade" ? null : a === "core" ? "c" : "f";
 
+const ehCabecalho = (linha: string) =>
+  AREAS.some((a) => linha.trim().toUpperCase() === a.rot.toUpperCase());
+
+/**
+ * Insere um exercício no texto do treino agrupado pela área:
+ * cria o cabeçalho (ex: "COSTAS") na primeira vez e, nas seguintes,
+ * acrescenta ao fim da seção existente — mesmo fora de ordem.
+ */
+export function inserirNoTexto(texto: string, area: AreaEx, nome: string): string {
+  const cabecalho = rotuloArea(area).toUpperCase();
+  const item = `- ${nome} — `;
+  const linhas = texto ? texto.split("\n") : [];
+
+  const idx = linhas.findIndex((l) => l.trim().toUpperCase() === cabecalho);
+  if (idx === -1) {
+    const antes = texto.trim() ? texto.replace(/\n+$/, "") + "\n\n" : "";
+    return `${antes}${cabecalho}\n${item}`;
+  }
+
+  // fim da seção: linha em branco ou próximo cabeçalho de área
+  let fim = idx + 1;
+  while (fim < linhas.length && linhas[fim].trim() !== "" && !ehCabecalho(linhas[fim])) fim++;
+  linhas.splice(fim, 0, item);
+  return linhas.join("\n");
+}
+
 export const rotuloArea = (a: AreaEx) => AREAS.find((x) => x.id === a)!.rot;
 
 interface Props {
