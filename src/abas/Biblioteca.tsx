@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Cat, Tipo, TreinoSalvo } from "../types";
+import type { Cat, Exercicio, Tipo, TreinoSalvo } from "../types";
 import { FONTE } from "../temas";
 import { useTema } from "../tema-ctx";
 import { uid } from "../dados";
@@ -24,12 +24,13 @@ const GRUPOS: { rot: string; tipo: Tipo | null; cats: { id: Cat; rot: string }[]
 
 interface Props {
   salvos: TreinoSalvo[];
+  exercicios: Exercicio[];
   addSalvo: (t: TreinoSalvo) => void;
   upSalvo: (id: string, patch: Partial<TreinoSalvo>) => void;
   delSalvo: (id: string) => void;
 }
 
-export default function Biblioteca({ salvos, addSalvo, upSalvo, delSalvo }: Props) {
+export default function Biblioteca({ salvos, exercicios, addSalvo, upSalvo, delSalvo }: Props) {
   const { C, est, cor } = useTema();
   const [editando, setEditando] = useState<string | null>(null);
   const [aberto, setAberto] = useState<string | null>(null);
@@ -149,6 +150,7 @@ export default function Biblioteca({ salvos, addSalvo, upSalvo, delSalvo }: Prop
               {rotuloCat(salvoAberto.cat) !== grupoDe(salvoAberto.cat).rot && ` · ${rotuloCat(salvoAberto.cat)}`}
             </span>
           }
+          exercicios={exercicios}
           texto={salvoAberto.texto}
           onChange={(t) => upSalvo(salvoAberto.id, { texto: t })}
           onFechar={() => setAberto(null)}

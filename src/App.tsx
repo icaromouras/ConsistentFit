@@ -201,7 +201,7 @@ export default function App() {
               ))}
             </div>
             {subTreinos === "salvos" ? (
-              <Biblioteca salvos={dados.salvos} addSalvo={addSalvo} upSalvo={upSalvo} delSalvo={delSalvo} />
+              <Biblioteca salvos={dados.salvos} exercicios={dados.exercicios} addSalvo={addSalvo} upSalvo={upSalvo} delSalvo={delSalvo} />
             ) : (
               <Exercicios exercicios={dados.exercicios} addEx={addEx} upEx={upEx} delEx={delEx} />
             )}

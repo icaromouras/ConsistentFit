@@ -322,6 +322,7 @@ export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, add
         <ModalTreino
           titulo={`${data.getDate()} de ${MESES[data.getMonth()]}`}
           subtitulo={metaAgendamento(agAberto)}
+          exercicios={exercicios}
           texto={agAberto.texto}
           onChange={(t) => upAg(agAberto.id, { texto: t })}
           onFechar={() => setAberto(null)}
