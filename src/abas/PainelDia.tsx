@@ -27,6 +27,17 @@ const CAT_ROT: Record<string, string> = {
 // mesma ordem de grupos usada na Biblioteca (Força primeiro, depois Core/Aeróbico/Mobilidade)
 const CATS_ORDEM: Cat[] = ["peito", "costas", "ombro", "biceps", "triceps", "inferiores", "core", "aerobico", "mobilidade"];
 
+// sugere a categoria a partir do primeiro cabeçalho de área já no texto
+// (ex: montado com exercícios de COSTAS → sugere "Costas"); sem cabeçalho, cai no tipo marcado
+const catPadraoPara = (texto: string, tiposList: Tipo[]): Cat => {
+  for (const linha of texto.split("\n")) {
+    const area = AREAS.find((a) => linha.trim().toUpperCase() === a.rot.toUpperCase());
+    if (area) return area.id;
+  }
+  if (tiposList.length === 1 && tiposList[0] === "a") return "aerobico";
+  return "peito";
+};
+
 interface Props {
   k: string;
   dia: DiaInfo;
@@ -55,6 +66,12 @@ export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, add
   const [nomeSalvar, setNomeSalvar] = useState("");
   const [catSalvar, setCatSalvar] = useState<Cat>("peito");
   const [salvoMsg, setSalvoMsg] = useState<string | null>(null);
+  // salvar um treino que JÁ está agendado (cartão "Treino agendado"), independente do form de criar
+  const [salvarAgId, setSalvarAgId] = useState<string | null>(null);
+  const [nomeSalvarAg, setNomeSalvarAg] = useState("");
+  const [catSalvarAg, setCatSalvarAg] = useState<Cat>("peito");
+  // guarda o id do agendamento junto da mensagem, senão ela apareceria embaixo de todos os cartões
+  const [salvoMsgAg, setSalvoMsgAg] = useState<{ id: string; texto: string } | null>(null);
 
   const togTipo = (t: Tipo) =>
     setTiposSel((p) => (p.includes(t) ? p.filter((x) => x !== t) : [...p, t]));
@@ -80,23 +97,20 @@ export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, add
     setSalvoMsg(null);
   };
 
-  // sugere a categoria a partir do primeiro cabeçalho de área já no texto
-  // (ex: monte com exercícios de COSTAS → sugere "Costas"); sem cabeçalho, cai no tipo marcado
-  const catPadrao = (): Cat => {
-    for (const linha of texto.split("\n")) {
-      const area = AREAS.find((a) => linha.trim().toUpperCase() === a.rot.toUpperCase());
-      if (area) return area.id;
-    }
-    if (tiposSel.length === 1 && tiposSel[0] === "a") return "aerobico";
-    return "peito";
-  };
-
   const salvarComoTreino = () => {
     if (!nomeSalvar.trim()) return;
     addSalvo({ id: uid(), cat: catSalvar, nome: nomeSalvar.trim(), texto: texto.trim() });
     setSalvoMsg(`Salvo como "${nomeSalvar.trim()}" em ${CAT_ROT[catSalvar]} — vai aparecer em "usar treino salvo".`);
     setSalvando(false);
     setNomeSalvar("");
+  };
+
+  const salvarAgendadoComoTreino = (a: Agendamento) => {
+    if (!nomeSalvarAg.trim()) return;
+    addSalvo({ id: uid(), cat: catSalvarAg, nome: nomeSalvarAg.trim(), texto: a.texto });
+    setSalvoMsgAg({ id: a.id, texto: `Salvo como "${nomeSalvarAg.trim()}" em ${CAT_ROT[catSalvarAg]} — vai aparecer em "usar treino salvo".` });
+    setSalvarAgId(null);
+    setNomeSalvarAg("");
   };
 
   const addExercicio = (e: Exercicio) => {
@@ -174,6 +188,20 @@ export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, add
                     abrir
                   </button>
                   <button
+                    style={{ ...est.ghost, padding: "4px 10px", fontSize: 10 }}
+                    aria-expanded={salvarAgId === a.id}
+                    onClick={() => {
+                      if (salvarAgId !== a.id) {
+                        setCatSalvarAg(catPadraoPara(a.texto, a.tipos));
+                        setNomeSalvarAg("");
+                      }
+                      setSalvoMsgAg(null);
+                      setSalvarAgId((id) => (id === a.id ? null : a.id));
+                    }}
+                  >
+                    salvar
+                  </button>
+                  <button
                     style={{ ...est.ghost, padding: "4px 8px", fontSize: 10 }}
                     onClick={() => {
                       const msg = a.repet === "nunca"
@@ -191,6 +219,48 @@ export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, add
                 onChange={(e) => upAg(a.id, { texto: e.target.value })}
                 style={{ ...est.area, minHeight: 60, background: C.panel, fontSize: 14 }}
               />
+
+              {salvarAgId === a.id && (
+                <div style={{ marginTop: 8, border: `1px solid ${C.line}`, borderRadius: 10, padding: 12, background: C.panel }}>
+                  <input
+                    value={nomeSalvarAg}
+                    autoFocus
+                    onChange={(e) => setNomeSalvarAg(e.target.value)}
+                    placeholder="Nome do treino (ex: Treino A — peito e tríceps)"
+                    style={{ ...est.input, marginBottom: 8 }}
+                  />
+                  <select
+                    value={catSalvarAg}
+                    onChange={(e) => setCatSalvarAg(e.target.value as Cat)}
+                    style={{ ...est.input, marginBottom: 10, cursor: "pointer" }}
+                  >
+                    {CATS_ORDEM.map((c) => (
+                      <option key={c} value={c}>{CAT_ROT[c]}</option>
+                    ))}
+                  </select>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      onClick={() => salvarAgendadoComoTreino(a)}
+                      disabled={!nomeSalvarAg.trim()}
+                      style={{
+                        flex: 1, padding: "9px", borderRadius: 9, border: "none",
+                        background: nomeSalvarAg.trim() ? C.ink : C.deep, color: nomeSalvarAg.trim() ? C.onDark : C.soft,
+                        fontFamily: FONTE.mono, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase",
+                        cursor: nomeSalvarAg.trim() ? "pointer" : "default",
+                      }}
+                    >
+                      Salvar treino
+                    </button>
+                    <button style={est.ghost} onClick={() => setSalvarAgId(null)}>cancelar</button>
+                  </div>
+                </div>
+              )}
+
+              {salvoMsgAg?.id === a.id && (
+                <p role="status" style={{ ...est.eyebrow, fontSize: 10, lineHeight: 1.5, color: C.forca, margin: "8px 0 0" }}>
+                  {salvoMsgAg.texto}
+                </p>
+              )}
             </div>
           ))}
         </div>
@@ -299,7 +369,7 @@ export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, add
                 style={{ ...est.ghost, width: "100%", marginTop: 8, padding: "9px", borderStyle: "dashed", color: salvando ? C.ink : C.soft, borderColor: salvando ? C.ink : C.line }}
                 aria-expanded={salvando}
                 onClick={() => {
-                  if (!salvando) { setCatSalvar(catPadrao()); setNomeSalvar(""); setSalvoMsg(null); }
+                  if (!salvando) { setCatSalvar(catPadraoPara(texto, tiposSel)); setNomeSalvar(""); setSalvoMsg(null); }
                   setSalvando((s) => !s);
                 }}
               >
