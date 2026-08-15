@@ -10,7 +10,7 @@ interface Props {
 }
 
 export default function Aparencia({ temaAtual, setTema, cores, setCor }: Props) {
-  const { C, est, tipos } = useTema();
+  const { C, est, tipos, tema } = useTema();
   const personalizadas = (["f", "c", "a"] as Tipo[]).filter((t) => cores[t]);
 
   return (
@@ -103,7 +103,7 @@ export default function Aparencia({ temaAtual, setTema, cores, setCor }: Props) 
                 position: "relative",
                 width: 40,
                 height: 40,
-                borderRadius: 10,
+                borderRadius: tema.raioP,
                 background: t.cor,
                 border: `1px solid ${C.line}`,
                 cursor: "pointer",

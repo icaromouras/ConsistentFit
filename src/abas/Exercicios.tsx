@@ -55,7 +55,7 @@ interface Props {
 }
 
 export default function Exercicios({ exercicios, addEx, upEx, delEx }: Props) {
-  const { C, est, cor } = useTema();
+  const { C, est, cor, tema } = useTema();
   const [editando, setEditando] = useState<string | null>(null);
 
   const novo = (area: AreaEx) => {
@@ -69,6 +69,15 @@ export default function Exercicios({ exercicios, addEx, upEx, delEx }: Props) {
       <p style={{ ...est.eyebrow, marginBottom: 16 }}>
         Só o nome (e uma observação, se quiser) — use-os para montar treinos ao agendar
       </p>
+
+      {exercicios.length === 0 && (
+        <div style={{ ...est.card, padding: 14, marginBottom: 18 }}>
+          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: C.soft }}>
+            Nenhum exercício ainda. Toque em <strong style={{ color: C.ink }}>+ novo</strong> numa área para cadastrar —
+            depois eles viram botões de um toque ao montar o treino no calendário.
+          </p>
+        </div>
+      )}
 
       {AREAS.map((area) => {
         const itens = exercicios.filter((e) => e.area === area.id);
@@ -91,10 +100,6 @@ export default function Exercicios({ exercicios, addEx, upEx, delEx }: Props) {
               </button>
             </div>
 
-            {itens.length === 0 && (
-              <div style={{ ...est.eyebrow, fontSize: 10, color: C.line, padding: "0 0 4px" }}>nenhum exercício</div>
-            )}
-
             {itens.map((e) =>
               editando === e.id ? (
                 <div key={e.id} style={{ ...est.card, padding: 12, marginBottom: 6, borderLeft: `3px solid ${corArea}` }}>
@@ -113,7 +118,7 @@ export default function Exercicios({ exercicios, addEx, upEx, delEx }: Props) {
                   />
                   <div style={{ display: "flex", gap: 8 }}>
                     <button
-                      style={{ flex: 1, padding: "9px", borderRadius: 9, border: "none", background: C.ink, color: C.onDark, fontFamily: FONTE.mono, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer" }}
+                      style={{ flex: 1, padding: "9px", borderRadius: tema.raioP - 1, border: "none", background: C.ink, color: C.onDark, fontFamily: FONTE.mono, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer" }}
                       onClick={() => {
                         // um exercício sem nome não serve para nada: descarta em vez de guardar vazio
                         if (!e.nome.trim()) delEx(e.id);
@@ -142,7 +147,7 @@ export default function Exercicios({ exercicios, addEx, upEx, delEx }: Props) {
                   style={{
                     display: "block", width: "100%", textAlign: "left", marginBottom: 5,
                     background: C.panel, border: `1px solid ${C.line}`, borderLeft: `3px solid ${corArea}`,
-                    borderRadius: 9, padding: "9px 12px", cursor: "pointer",
+                    borderRadius: tema.raioP - 1, padding: "9px 12px", cursor: "pointer",
                     fontFamily: FONTE.sans, fontSize: 14, color: C.ink,
                   }}
                 >

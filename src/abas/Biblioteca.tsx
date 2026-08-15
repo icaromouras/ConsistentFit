@@ -22,6 +22,15 @@ const GRUPOS: { rot: string; tipo: Tipo | null; cats: { id: Cat; rot: string }[]
   { rot: "Mobilidade", tipo: null, cats: [{ id: "mobilidade", rot: "Mobilidade" }] },
 ];
 
+/** Resumo de uma linha: conta exercícios; sem lista, mostra a 1ª linha que não é cabeçalho. */
+const resumoTreino = (texto: string): string => {
+  const linhas = (texto || "").split("\n").map((l) => l.trim()).filter(Boolean);
+  const itens = linhas.filter((l) => l.startsWith("-"));
+  if (itens.length > 0) return `${itens.length} ${itens.length === 1 ? "exercício" : "exercícios"}`;
+  const primeira = linhas.find((l) => !(l === l.toUpperCase() && /\p{Lu}/u.test(l)));
+  return primeira || "";
+};
+
 interface Props {
   salvos: TreinoSalvo[];
   exercicios: Exercicio[];
@@ -31,7 +40,7 @@ interface Props {
 }
 
 export default function Biblioteca({ salvos, exercicios, addSalvo, upSalvo, delSalvo }: Props) {
-  const { C, est, cor } = useTema();
+  const { C, est, cor, tema } = useTema();
   const [editando, setEditando] = useState<string | null>(null);
   const [aberto, setAberto] = useState<string | null>(null);
 
@@ -50,6 +59,15 @@ export default function Biblioteca({ salvos, exercicios, addSalvo, upSalvo, delS
       <p style={{ ...est.eyebrow, marginBottom: 16 }}>
         Treinos padrão — edite uma vez, use quando quiser ao agendar
       </p>
+
+      {salvos.length === 0 && (
+        <div style={{ ...est.card, padding: 14, marginBottom: 18 }}>
+          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: C.soft }}>
+            Nenhum treino salvo ainda. Toque em <strong style={{ color: C.ink }}>+ novo</strong> numa categoria,
+            ou use <strong style={{ color: C.ink }}>salvar como treino</strong> ao agendar um treino no calendário.
+          </p>
+        </div>
+      )}
 
       {GRUPOS.map((g) => {
         const gcor = g.tipo ? cor(g.tipo) : C.soft;
@@ -73,10 +91,6 @@ export default function Biblioteca({ salvos, exercicios, addSalvo, upSalvo, delS
                   </button>
                 </div>
 
-                {itens.length === 0 && (
-                  <div style={{ ...est.eyebrow, fontSize: 10, color: C.line, padding: "2px 0 6px" }}>nenhum treino salvo</div>
-                )}
-
                 {itens.map((s) =>
                   editando === s.id ? (
                     <div key={s.id} style={{ ...est.card, padding: 12, marginBottom: 8, borderLeft: `3px solid ${gcor}` }}>
@@ -94,7 +108,7 @@ export default function Biblioteca({ salvos, exercicios, addSalvo, upSalvo, delS
                       />
                       <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                         <button
-                          style={{ flex: 1, padding: "9px", borderRadius: 9, border: "none", background: C.ink, color: C.onDark, fontFamily: FONTE.mono, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer" }}
+                          style={{ flex: 1, padding: "9px", borderRadius: tema.raioP - 1, border: "none", background: C.ink, color: C.onDark, fontFamily: FONTE.mono, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer" }}
                           onClick={() => setEditando(null)}
                         >
                           Pronto
@@ -120,14 +134,14 @@ export default function Biblioteca({ salvos, exercicios, addSalvo, upSalvo, delS
                       style={{
                         display: "block", width: "100%", textAlign: "left", marginBottom: 6,
                         background: C.panel, border: `1px solid ${C.line}`, borderLeft: `3px solid ${gcor}`,
-                        borderRadius: 10, padding: "10px 12px", cursor: "pointer",
+                        borderRadius: tema.raioP, padding: "10px 12px", cursor: "pointer",
                         fontFamily: FONTE.sans, fontSize: 14, color: C.ink,
                       }}
                     >
                       <span style={{ fontWeight: 600 }}>{s.nome}</span>
-                      {(s.texto || "").trim() && (
+                      {resumoTreino(s.texto) && (
                         <span style={{ display: "block", color: C.soft, fontSize: 12, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {s.texto.split("\n")[0]}
+                          {resumoTreino(s.texto)}
                         </span>
                       )}
                     </button>

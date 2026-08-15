@@ -118,6 +118,14 @@ export default function Mes({ dados, cursor, navegar, sel, setSel, setDia, addAg
         ))}
       </div>
 
+      {!sel && Object.keys(dados.dias).length === 0 && dados.agendamentos.length === 0 && (
+        <p style={{ ...est.eyebrow, textAlign: "center", marginTop: 16, lineHeight: 1.8 }}>
+          toque num dia para marcar o que treinou
+          <br />
+          ou agendar um treino
+        </p>
+      )}
+
       {sel && (
         <PainelDia
           key={sel}

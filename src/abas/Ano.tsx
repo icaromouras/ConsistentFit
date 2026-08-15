@@ -96,8 +96,8 @@ export default function Ano({ totais, ano, mudarAno, metaAno, setMeta, anotacoes
             <i style={{ width: 10, height: 10, background: t.cor, borderRadius: 2, display: "inline-block" }} /> {t.rot.toLowerCase()}
           </span>
         ))}
-        <span style={est.eyebrow}>· dias treinados no mês</span>
       </div>
+      <div style={{ ...est.eyebrow, fontSize: 9, marginTop: 6 }}>o número à direita é o total de dias treinados no mês</div>
 
       <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
         {tipos.map((t) => (

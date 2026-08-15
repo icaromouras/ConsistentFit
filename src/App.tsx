@@ -142,6 +142,8 @@ export default function App() {
           @media (prefers-reduced-motion: no-preference) {
             .cel { transition: transform .12s ease; }
             .cel:active { transform: scale(.93); }
+            button { transition: opacity .1s ease; }
+            button:active { opacity: .75; }
           }
           /* !important: tab() aplica fonte e espaçamento como estilo inline */
           @media (max-width: 420px) {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Agendamento, AreaEx, Cat, DiaInfo, Exercicio, Repet, Tipo, TreinoSalvo } from "../types";
 import { DIA_CURTO, FONTE, MESES, SEM } from "../temas";
 import { useTema } from "../tema-ctx";
@@ -52,8 +52,15 @@ interface Props {
 }
 
 export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, addAg, upAg, delAg, addSalvo }: Props) {
-  const { C, est, chip, tipos } = useTema();
+  const { C, est, chip, tipos, tema } = useTema();
   const data = parseIso(k);
+  const raizRef = useRef<HTMLDivElement>(null);
+
+  // o painel abre abaixo do calendário; sem isso, em telas baixas o usuário nem percebe que abriu
+  useEffect(() => {
+    const suave = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+    raizRef.current?.scrollIntoView({ behavior: suave ? "smooth" : "auto", block: "nearest" });
+  }, []);
   const [criando, setCriando] = useState(false);
   const [texto, setTexto] = useState("");
   const [tiposSel, setTiposSel] = useState<Tipo[]>([]);
@@ -151,12 +158,57 @@ export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, add
 
   const agAberto = aberto ? ags.find((a) => a.id === aberto) : undefined;
 
+  // prévia compacta e formatada do treino agendado; a edição acontece no "abrir"
+  const MAX_LINHAS_PREVIA = 6;
+  const previaTreino = (a: Agendamento) => {
+    const linhas = a.texto.split("\n").filter((l) => l.trim());
+    return (
+      <button
+        onClick={() => setAberto(a.id)}
+        aria-label="Abrir treino em tela cheia"
+        style={{
+          display: "block", width: "100%", textAlign: "left",
+          background: C.panel, border: `1px solid ${C.line}`, borderRadius: tema.raioP,
+          padding: "10px 12px", cursor: "pointer", fontFamily: FONTE.sans, color: C.ink,
+        }}
+      >
+        {linhas.slice(0, MAX_LINHAS_PREVIA).map((l, i) => {
+          const t = l.trim();
+          const ehTitulo = !t.startsWith("-") && t === t.toUpperCase() && /\p{Lu}/u.test(t);
+          if (ehTitulo) {
+            return (
+              <div key={i} style={{ fontFamily: FONTE.mono, fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: C.soft, margin: i === 0 ? "0 0 3px" : "8px 0 3px" }}>
+                {t}
+              </div>
+            );
+          }
+          const conteudo = t.replace(/^-\s*/, "");
+          const sep = conteudo.indexOf("—");
+          const nome = sep === -1 ? conteudo : conteudo.slice(0, sep).trim();
+          const det = sep === -1 ? "" : conteudo.slice(sep + 1).trim();
+          return (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 13, lineHeight: 1.6 }}>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nome}</span>
+              {det && <span style={{ ...est.num, fontSize: 12, color: C.soft, flexShrink: 0 }}>{det}</span>}
+            </div>
+          );
+        })}
+        {linhas.length > MAX_LINHAS_PREVIA && (
+          <div style={{ ...est.eyebrow, fontSize: 9, marginTop: 4 }}>
+            +{linhas.length - MAX_LINHAS_PREVIA} {linhas.length - MAX_LINHAS_PREVIA === 1 ? "linha" : "linhas"} — toque para ver tudo
+          </div>
+        )}
+      </button>
+    );
+  };
+
   return (
-    <div style={{ ...est.card, marginTop: 16 }}>
+    <div ref={raizRef} style={{ ...est.card, marginTop: 16 }}>
       <div style={{ ...est.eyebrow, marginBottom: 12 }}>
         {data.getDate()} de {MESES[data.getMonth()]} · {DIA_CURTO[data.getDay()]}
       </div>
 
+      <div style={{ ...est.eyebrow, fontSize: 9, marginBottom: 6 }}>marcar o que você treinou</div>
       <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
         {tipos.map((t) => (
           <button key={t.id} style={chip(!!dia[t.id], t.cor)} aria-pressed={!!dia[t.id]}
@@ -177,18 +229,18 @@ export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, add
         <div style={{ marginTop: 16 }}>
           <div style={{ ...est.eyebrow, marginBottom: 8 }}>Treino agendado</div>
           {ags.map((a) => (
-            <div key={a.id} style={{ background: C.agenda, border: `1px solid ${C.line}`, borderRadius: 12, padding: 12, marginBottom: 8 }}>
+            <div key={a.id} style={{ background: C.agenda, border: `1px solid ${C.line}`, borderRadius: tema.raioP + 2, padding: 12, marginBottom: 8 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
                 {metaAgendamento(a)}
                 <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                   <button
-                    style={{ ...est.ghost, padding: "4px 10px", fontSize: 10, color: C.ink, borderColor: C.ink }}
+                    style={{ ...est.ghost, padding: "6px 11px", fontSize: 10, color: C.ink, borderColor: C.ink }}
                     onClick={() => setAberto(a.id)}
                   >
                     abrir
                   </button>
                   <button
-                    style={{ ...est.ghost, padding: "4px 10px", fontSize: 10 }}
+                    style={{ ...est.ghost, padding: "6px 11px", fontSize: 10 }}
                     aria-expanded={salvarAgId === a.id}
                     onClick={() => {
                       if (salvarAgId !== a.id) {
@@ -202,7 +254,7 @@ export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, add
                     salvar
                   </button>
                   <button
-                    style={{ ...est.ghost, padding: "4px 8px", fontSize: 10 }}
+                    style={{ ...est.ghost, padding: "6px 10px", fontSize: 10 }}
                     onClick={() => {
                       const msg = a.repet === "nunca"
                         ? "Excluir este treino agendado?"
@@ -214,14 +266,10 @@ export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, add
                   </button>
                 </div>
               </div>
-              <textarea
-                value={a.texto}
-                onChange={(e) => upAg(a.id, { texto: e.target.value })}
-                style={{ ...est.area, minHeight: 60, background: C.panel, fontSize: 14 }}
-              />
+              {previaTreino(a)}
 
               {salvarAgId === a.id && (
-                <div style={{ marginTop: 8, border: `1px solid ${C.line}`, borderRadius: 10, padding: 12, background: C.panel }}>
+                <div style={{ marginTop: 8, border: `1px solid ${C.line}`, borderRadius: tema.raioP, padding: 12, background: C.panel }}>
                   <input
                     value={nomeSalvarAg}
                     autoFocus
@@ -243,7 +291,7 @@ export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, add
                       onClick={() => salvarAgendadoComoTreino(a)}
                       disabled={!nomeSalvarAg.trim()}
                       style={{
-                        flex: 1, padding: "9px", borderRadius: 9, border: "none",
+                        flex: 1, padding: "9px", borderRadius: tema.raioP - 1, border: "none",
                         background: nomeSalvarAg.trim() ? C.ink : C.deep, color: nomeSalvarAg.trim() ? C.onDark : C.soft,
                         fontFamily: FONTE.mono, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase",
                         cursor: nomeSalvarAg.trim() ? "pointer" : "default",
@@ -308,7 +356,7 @@ export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, add
           </button>
 
           {montando && (
-            <div style={{ marginTop: 8, border: `1px solid ${C.line}`, borderRadius: 10, overflow: "hidden" }}>
+            <div style={{ marginTop: 8, border: `1px solid ${C.line}`, borderRadius: tema.raioP, overflow: "hidden" }}>
               {exercicios.length === 0 && (
                 <p style={{ ...est.eyebrow, fontSize: 10, lineHeight: 1.6, margin: 0, padding: 12 }}>
                   Nenhum exercício cadastrado ainda. Cadastre em Treinos → Exercícios e eles aparecem aqui para montar o treino com um toque.
@@ -342,7 +390,7 @@ export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, add
                             title={e.obs || undefined}
                             onClick={() => addExercicio(e)}
                             style={{
-                              padding: "7px 11px", borderRadius: 8, border: `1px solid ${C.line}`,
+                              padding: "7px 11px", borderRadius: Math.max(3, tema.raioP - 2), border: `1px solid ${C.line}`,
                               background: C.panel, color: C.ink, fontFamily: FONTE.sans,
                               fontSize: 13, cursor: "pointer",
                             }}
@@ -377,7 +425,7 @@ export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, add
               </button>
 
               {salvando && (
-                <div style={{ marginTop: 8, border: `1px solid ${C.line}`, borderRadius: 10, padding: 12 }}>
+                <div style={{ marginTop: 8, border: `1px solid ${C.line}`, borderRadius: tema.raioP, padding: 12 }}>
                   <input
                     value={nomeSalvar}
                     autoFocus
@@ -399,7 +447,7 @@ export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, add
                       onClick={salvarComoTreino}
                       disabled={!nomeSalvar.trim()}
                       style={{
-                        flex: 1, padding: "9px", borderRadius: 9, border: "none",
+                        flex: 1, padding: "9px", borderRadius: tema.raioP - 1, border: "none",
                         background: nomeSalvar.trim() ? C.ink : C.deep, color: nomeSalvar.trim() ? C.onDark : C.soft,
                         fontFamily: FONTE.mono, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase",
                         cursor: nomeSalvar.trim() ? "pointer" : "default",
@@ -451,7 +499,7 @@ export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, add
                 <button key={d} aria-pressed={diasSem.includes(d)} aria-label={DIA_CURTO[d]}
                   onClick={() => togDiaSem(d)}
                   style={{
-                    flex: 1, aspectRatio: "1", borderRadius: 8, cursor: "pointer",
+                    flex: 1, aspectRatio: "1", borderRadius: Math.max(3, tema.raioP - 2), cursor: "pointer",
                     border: `1.5px solid ${diasSem.includes(d) ? C.ink : C.line}`,
                     background: diasSem.includes(d) ? C.ink : "transparent",
                     color: diasSem.includes(d) ? C.onDark : C.soft,
@@ -468,7 +516,7 @@ export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, add
               onClick={confirmar}
               disabled={!texto.trim() || ((repet === "semanal" || repet === "quinzenal") && diasSem.length === 0)}
               style={{
-                flex: 1, padding: "11px", borderRadius: 10, border: "none",
+                flex: 1, padding: "11px", borderRadius: tema.raioP, border: "none",
                 background: texto.trim() ? C.ink : C.deep, color: texto.trim() ? C.onDark : C.soft,
                 fontFamily: FONTE.mono, fontSize: 12, letterSpacing: "0.08em",
                 textTransform: "uppercase", cursor: texto.trim() ? "pointer" : "default",
