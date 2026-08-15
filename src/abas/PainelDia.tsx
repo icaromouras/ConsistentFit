@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Agendamento, AreaEx, DiaInfo, Exercicio, Repet, Tipo, TreinoSalvo } from "../types";
+import type { Agendamento, AreaEx, Cat, DiaInfo, Exercicio, Repet, Tipo, TreinoSalvo } from "../types";
 import { DIA_CURTO, FONTE, MESES, SEM } from "../temas";
 import { useTema } from "../tema-ctx";
 import { parseIso, uid } from "../dados";
@@ -24,6 +24,9 @@ const CAT_ROT: Record<string, string> = {
   mobilidade: "Mobilidade",
 };
 
+// mesma ordem de grupos usada na Biblioteca (Força primeiro, depois Core/Aeróbico/Mobilidade)
+const CATS_ORDEM: Cat[] = ["peito", "costas", "ombro", "biceps", "triceps", "inferiores", "core", "aerobico", "mobilidade"];
+
 interface Props {
   k: string;
   dia: DiaInfo;
@@ -34,9 +37,10 @@ interface Props {
   addAg: (a: Agendamento) => void;
   upAg: (id: string, patch: Partial<Agendamento>) => void;
   delAg: (id: string) => void;
+  addSalvo: (t: TreinoSalvo) => void;
 }
 
-export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, addAg, upAg, delAg }: Props) {
+export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, addAg, upAg, delAg, addSalvo }: Props) {
   const { C, est, chip, tipos } = useTema();
   const data = parseIso(k);
   const [criando, setCriando] = useState(false);
@@ -47,6 +51,10 @@ export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, add
   const [aberto, setAberto] = useState<string | null>(null);
   const [montando, setMontando] = useState(false);
   const [areaAberta, setAreaAberta] = useState<AreaEx | null>(null);
+  const [salvando, setSalvando] = useState(false);
+  const [nomeSalvar, setNomeSalvar] = useState("");
+  const [catSalvar, setCatSalvar] = useState<Cat>("peito");
+  const [salvoMsg, setSalvoMsg] = useState<string | null>(null);
 
   const togTipo = (t: Tipo) =>
     setTiposSel((p) => (p.includes(t) ? p.filter((x) => x !== t) : [...p, t]));
@@ -56,11 +64,39 @@ export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, add
   const confirmar = () => {
     if (!texto.trim()) return;
     addAg({ id: uid(), texto: texto.trim(), tipos: tiposSel, inicio: k, repet, diasSemana: diasSem });
+    fecharForm();
+  };
+
+  const fecharForm = () => {
     setCriando(false);
     setTexto("");
     setTiposSel([]);
     setRepet("nunca");
     setDiasSem([data.getDay()]);
+    setMontando(false);
+    setAreaAberta(null);
+    setSalvando(false);
+    setNomeSalvar("");
+    setSalvoMsg(null);
+  };
+
+  // sugere a categoria a partir do primeiro cabeçalho de área já no texto
+  // (ex: monte com exercícios de COSTAS → sugere "Costas"); sem cabeçalho, cai no tipo marcado
+  const catPadrao = (): Cat => {
+    for (const linha of texto.split("\n")) {
+      const area = AREAS.find((a) => linha.trim().toUpperCase() === a.rot.toUpperCase());
+      if (area) return area.id;
+    }
+    if (tiposSel.length === 1 && tiposSel[0] === "a") return "aerobico";
+    return "peito";
+  };
+
+  const salvarComoTreino = () => {
+    if (!nomeSalvar.trim()) return;
+    addSalvo({ id: uid(), cat: catSalvar, nome: nomeSalvar.trim(), texto: texto.trim() });
+    setSalvoMsg(`Salvo como "${nomeSalvar.trim()}" em ${CAT_ROT[catSalvar]} — vai aparecer em "usar treino salvo".`);
+    setSalvando(false);
+    setNomeSalvar("");
   };
 
   const addExercicio = (e: Exercicio) => {
@@ -257,6 +293,63 @@ export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, add
             </div>
           )}
 
+          {texto.trim() && (
+            <>
+              <button
+                style={{ ...est.ghost, width: "100%", marginTop: 8, padding: "9px", borderStyle: "dashed", color: salvando ? C.ink : C.soft, borderColor: salvando ? C.ink : C.line }}
+                aria-expanded={salvando}
+                onClick={() => {
+                  if (!salvando) { setCatSalvar(catPadrao()); setNomeSalvar(""); setSalvoMsg(null); }
+                  setSalvando((s) => !s);
+                }}
+              >
+                {salvando ? "− fechar" : "+ salvar como treino"}
+              </button>
+
+              {salvando && (
+                <div style={{ marginTop: 8, border: `1px solid ${C.line}`, borderRadius: 10, padding: 12 }}>
+                  <input
+                    value={nomeSalvar}
+                    autoFocus
+                    onChange={(e) => setNomeSalvar(e.target.value)}
+                    placeholder="Nome do treino (ex: Treino A — peito e tríceps)"
+                    style={{ ...est.input, marginBottom: 8 }}
+                  />
+                  <select
+                    value={catSalvar}
+                    onChange={(e) => setCatSalvar(e.target.value as Cat)}
+                    style={{ ...est.input, marginBottom: 10, cursor: "pointer" }}
+                  >
+                    {CATS_ORDEM.map((c) => (
+                      <option key={c} value={c}>{CAT_ROT[c]}</option>
+                    ))}
+                  </select>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      onClick={salvarComoTreino}
+                      disabled={!nomeSalvar.trim()}
+                      style={{
+                        flex: 1, padding: "9px", borderRadius: 9, border: "none",
+                        background: nomeSalvar.trim() ? C.ink : C.deep, color: nomeSalvar.trim() ? C.onDark : C.soft,
+                        fontFamily: FONTE.mono, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase",
+                        cursor: nomeSalvar.trim() ? "pointer" : "default",
+                      }}
+                    >
+                      Salvar treino
+                    </button>
+                    <button style={est.ghost} onClick={() => setSalvando(false)}>cancelar</button>
+                  </div>
+                </div>
+              )}
+
+              {salvoMsg && (
+                <p role="status" style={{ ...est.eyebrow, fontSize: 10, lineHeight: 1.5, color: C.forca, margin: "8px 0 0" }}>
+                  {salvoMsg}
+                </p>
+              )}
+            </>
+          )}
+
           <div style={{ display: "flex", gap: 6, margin: "10px 0" }}>
             {tipos.map((t) => (
               <button key={t.id}
@@ -313,7 +406,7 @@ export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, add
             >
               Agendar
             </button>
-            <button style={est.ghost} onClick={() => setCriando(false)}>cancelar</button>
+            <button style={est.ghost} onClick={fecharForm}>cancelar</button>
           </div>
         </div>
       )}

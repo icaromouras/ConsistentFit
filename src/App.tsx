@@ -174,6 +174,7 @@ export default function App() {
             addAg={addAg}
             upAg={upAg}
             delAg={delAg}
+            addSalvo={addSalvo}
             totais={totais}
             hojeIso={hojeIso}
           />
