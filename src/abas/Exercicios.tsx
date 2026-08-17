@@ -72,6 +72,36 @@ export function sugerirCategoria(texto: string): Cat | null {
   return null;
 }
 
+/**
+ * Normaliza para busca: minúsculas e sem acento, preservando o mapa de volta
+ * para o texto original (cada caractere normalizado sabe de que índice veio),
+ * para conseguir destacar o trecho encontrado no nome com acentos.
+ */
+function normalizarComMapa(s: string): { txt: string; mapa: number[] } {
+  let txt = "";
+  const mapa: number[] = [];
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i].normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+    for (const ch of c) {
+      txt += ch;
+      mapa.push(i);
+    }
+  }
+  return { txt, mapa };
+}
+
+const normalizar = (s: string) => normalizarComMapa(s).txt;
+
+/** Posição do termo dentro do nome original, ou null se não bater. */
+function acharTrecho(nome: string, termo: string): [number, number] | null {
+  const alvo = normalizar(termo);
+  if (!alvo) return null;
+  const { txt, mapa } = normalizarComMapa(nome);
+  const i = txt.indexOf(alvo);
+  if (i === -1) return null;
+  return [mapa[i], mapa[i + alvo.length - 1] + 1];
+}
+
 interface Props {
   exercicios: Exercicio[];
   addEx: (e: Exercicio) => void;
@@ -82,11 +112,33 @@ interface Props {
 export default function Exercicios({ exercicios, addEx, upEx, delEx }: Props) {
   const { C, est, cor, tema } = useTema();
   const [editando, setEditando] = useState<string | null>(null);
+  const [busca, setBusca] = useState("");
+
+  const termo = busca.trim();
+  const buscando = termo !== "";
+  // durante a busca, o exercício em edição continua visível mesmo se o nome
+  // deixar de bater — senão o card sumiria embaixo do dedo ao renomear
+  const bate = (e: Exercicio) => !buscando || e.id === editando || acharTrecho(e.nome, termo) !== null;
+  const achados = buscando ? exercicios.filter((e) => acharTrecho(e.nome, termo) !== null).length : 0;
 
   const novo = (area: AreaEx) => {
     const e: Exercicio = { id: uid(), area, nome: "" };
     addEx(e);
     setEditando(e.id);
+    setBusca("");
+  };
+
+  /** Nome com o trecho buscado em destaque. */
+  const nomeRealcado = (nome: string, corArea: string) => {
+    const t = buscando ? acharTrecho(nome, termo) : null;
+    if (!t) return nome;
+    return (
+      <>
+        {nome.slice(0, t[0])}
+        <span style={{ background: corArea + "33", borderRadius: 3, padding: "1px 1px" }}>{nome.slice(t[0], t[1])}</span>
+        {nome.slice(t[1])}
+      </>
+    );
   };
 
   return (
@@ -94,6 +146,45 @@ export default function Exercicios({ exercicios, addEx, upEx, delEx }: Props) {
       <p style={{ ...est.eyebrow, marginBottom: 16 }}>
         Só o nome (e uma observação, se quiser) — use-os para montar treinos ao agendar
       </p>
+
+      {exercicios.length > 0 && (
+        <div style={{ position: "relative", marginBottom: buscando ? 10 : 18 }}>
+          <input
+            value={busca}
+            onChange={(ev) => setBusca(ev.target.value)}
+            onKeyDown={(ev) => ev.key === "Escape" && setBusca("")}
+            placeholder="Buscar exercício pelo nome…"
+            aria-label="Buscar exercício pelo nome"
+            style={{ ...est.input, paddingLeft: 34, paddingRight: buscando ? 40 : 12 }}
+          />
+          <span aria-hidden style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: C.soft, fontSize: 17, lineHeight: 1, pointerEvents: "none" }}>
+            ⌕
+          </span>
+          {buscando && (
+            <button
+              onClick={() => setBusca("")}
+              aria-label="Limpar busca"
+              style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", border: "none", background: "transparent", color: C.soft, cursor: "pointer", fontSize: 16, lineHeight: 1, padding: "6px 8px" }}
+            >
+              ×
+            </button>
+          )}
+        </div>
+      )}
+
+      {buscando && achados > 0 && (
+        <p style={{ ...est.eyebrow, fontSize: 10, marginTop: 0, marginBottom: 14 }}>
+          {achados} {achados === 1 ? "resultado" : "resultados"}
+        </p>
+      )}
+
+      {buscando && achados === 0 && (
+        <div style={{ ...est.card, padding: 14, marginBottom: 18 }}>
+          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: C.soft }}>
+            Nenhum exercício com <strong style={{ color: C.ink }}>{termo}</strong> no nome.
+          </p>
+        </div>
+      )}
 
       {exercicios.length === 0 && (
         <div style={{ ...est.card, padding: 14, marginBottom: 18 }}>
@@ -105,7 +196,9 @@ export default function Exercicios({ exercicios, addEx, upEx, delEx }: Props) {
       )}
 
       {AREAS.map((area) => {
-        const itens = exercicios.filter((e) => e.area === area.id);
+        const itens = exercicios.filter((e) => e.area === area.id && bate(e));
+        // buscando, uma área sem resultado sai da tela em vez de virar cabeçalho vazio
+        if (buscando && itens.length === 0) return null;
         const t = tipoDaArea(area.id);
         const corArea = t ? cor(t) : C.soft;
         return (
@@ -116,13 +209,15 @@ export default function Exercicios({ exercicios, addEx, upEx, delEx }: Props) {
                 <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.01em" }}>{area.rot}</span>
                 {itens.length > 0 && <span style={{ ...est.num, fontSize: 11, color: C.soft }}>{itens.length}</span>}
               </span>
-              <button
-                style={{ ...est.ghost, padding: "4px 10px", fontSize: 10 }}
-                aria-label={`Novo exercício em ${area.rot}`}
-                onClick={() => novo(area.id)}
-              >
-                + novo
-              </button>
+              {!buscando && (
+                <button
+                  style={{ ...est.ghost, padding: "4px 10px", fontSize: 10 }}
+                  aria-label={`Novo exercício em ${area.rot}`}
+                  onClick={() => novo(area.id)}
+                >
+                  + novo
+                </button>
+              )}
             </div>
 
             {itens.map((e) =>
@@ -176,7 +271,7 @@ export default function Exercicios({ exercicios, addEx, upEx, delEx }: Props) {
                     fontFamily: FONTE.sans, fontSize: 14, color: C.ink,
                   }}
                 >
-                  <span style={{ fontWeight: 600 }}>{e.nome}</span>
+                  <span style={{ fontWeight: 600 }}>{nomeRealcado(e.nome, corArea)}</span>
                   {(e.obs || "").trim() && (
                     <span style={{ display: "block", color: C.soft, fontSize: 12, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {e.obs}
