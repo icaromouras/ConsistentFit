@@ -109,7 +109,7 @@ export default function Mes({ dados, cursor, navegar, sel, setSel, setDia, addAg
 
       <div style={{ display: "flex", gap: 12, marginTop: 10, flexWrap: "wrap", justifyContent: "center" }}>
         <span style={{ ...est.eyebrow, fontSize: 9, display: "flex", alignItems: "center", gap: 5 }}>
-          <i style={{ width: 9, height: 9, borderRadius: 2, background: C.agenda, border: `1px solid ${C.agendaInk}`, display: "inline-block" }} /> agendado
+          <i style={{ width: 9, height: 9, borderRadius: 2, background: C.agenda, border: `1px solid ${C.agendaInk}`, display: "inline-block" }} /> treino do dia
         </span>
         {tipos.map((t) => (
           <span key={t.id} style={{ ...est.eyebrow, fontSize: 9, display: "flex", alignItems: "center", gap: 5 }}>
@@ -122,7 +122,7 @@ export default function Mes({ dados, cursor, navegar, sel, setSel, setDia, addAg
         <p style={{ ...est.eyebrow, textAlign: "center", marginTop: 16, lineHeight: 1.8 }}>
           toque num dia para marcar o que treinou
           <br />
-          ou agendar um treino
+          ou montar o treino do dia
         </p>
       )}
 

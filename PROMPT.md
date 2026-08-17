@@ -118,8 +118,9 @@ em telas baixas o usuário não percebe que abriu.
    Aeróbico) que alternam o que foi feito naquele dia. Chip ativo = preenchido
    com a cor do tipo.
 3. Campo de nota livre de uma linha.
-4. **Treinos agendados** do dia (ver §5).
-5. Botão `+ agendar treino`, que abre o formulário de agendamento (§5).
+4. **Treino do dia** — os treinos montados/agendados daquele dia (ver §5).
+5. Botão `+ montar treino do dia` (ou `+ montar outro treino`, se já houver um),
+   que abre o montador (§5).
 
 ### Resumo do mês
 Card abaixo do painel, com:
@@ -138,31 +139,42 @@ colidir.
 
 Por fim, uma linha compacta com o **acumulado do ano**.
 
-## 5. Agendamento de treinos
+## 5. O treino do dia
 
-### Formulário (`+ agendar treino`)
-Na ordem:
+Montar o treino e agendá-lo são **a mesma coisa**: o usuário monta o treino que
+vai fazer — na hora de treinar ou dias antes — e escolhe se aquilo se repete.
 
-1. **`Usar treino salvo…`** — `<select>` com os treinos da biblioteca, rotulados
-   `Categoria — Nome`. Ao escolher, preenche o texto e marca o tipo
-   correspondente à categoria. Só aparece se houver treinos salvos.
-2. **Caixa de texto** do treino (multi-linha).
-3. **`+ montar com exercícios`** — abre uma sanfona com as áreas que têm
-   exercícios cadastrados; cada área expande em botões, um por exercício.
-   Tocar num exercício:
-   - **insere no texto agrupado pela área** (ver o algoritmo abaixo);
-   - marca automaticamente o tipo (área `core` ⇒ Core; `mobilidade` ⇒ nenhum;
-     demais ⇒ Força);
-   - mostra a observação de execução como `title` do botão.
-   Se não há exercícios cadastrados, explique onde cadastrá-los.
-4. **`+ salvar como treino`** — só aparece quando há texto. Abre nome +
-   categoria e grava na biblioteca (§7). A categoria vem pré-sugerida.
-5. Chips dos três **tipos** do treino.
-6. **Repetir**: Não repete / Semanal / Quinzenal / Mensal. Em semanal e
-   quinzenal, aparece um seletor de dias da semana (D S T Q Q S S), iniciado
-   no dia da data escolhida.
-7. Botões **Agendar** e **cancelar**. Cancelar limpa tudo, inclusive painéis
-   abertos.
+### O montador (componente único, §5.1)
+O **mesmo** painel de montar treino serve o dia (aba Mês) e a biblioteca
+(aba Treinos). Quem usa o app aprende um jeito só. Ele tem, na ordem:
+
+1. **Caixa de texto** — escrita livre, sempre disponível.
+2. Três botões iguais, um painel aberto por vez:
+   - **`treino salvo`** — os treinos da biblioteca agrupados por categoria, com
+     o quadrado colorido do grupo. Cada toque **acrescenta o treino inteiro**
+     como mais uma seção; dá para somar **quantos quiser** (bíceps + tríceps +
+     core num treino só). Se o treino de origem não tem cabeçalho próprio, ele
+     entra sob o nome da sua categoria em maiúsculas.
+   - **`exercício`** — sanfona com as áreas que têm exercícios cadastrados,
+     inserindo **agrupado por área** (algoritmo abaixo). A observação de
+     execução vai no `title` do botão. Sem catálogo, explique onde cadastrar.
+   - **`ajustar`** — desabilitado enquanto não há texto. Mostra o treino linha a
+     linha: tocar numa linha edita **só aquela linha** (nome/séries); o `×`
+     remove o exercício; o `×` de um **título remove a seção inteira**. Uma
+     seção que fica sem itens perde o título sozinha.
+
+### Formulário do dia (`+ montar treino do dia`)
+Montador + **Repetir** (`Só neste dia` / `Toda semana` / `A cada 15 dias` /
+`Todo mês`; nas duas do meio, o seletor de dias da semana D S T Q Q S S,
+iniciado no dia escolhido) + **Salvar treino do dia** e **cancelar**.
+
+**Não há chips de tipo aqui.** Força/Core/Aeróbico são deduzidos dos cabeçalhos
+do próprio texto ao gravar — uma decisão a menos para o usuário. (Os chips de
+"marcar o que você treinou" no topo do painel são outra coisa e continuam.)
+
+Um treino **novo** fica em rascunho até `Salvar treino do dia` (sair pergunta
+antes de descartar); um treino **já criado**, aberto em `alterar`, grava a cada
+toque, como o resto do app — trocar de aba no meio não pode perder nada.
 
 #### Algoritmo de inserção agrupada (importante)
 Ao tocar num exercício, **não** acrescente no fim do texto. Em vez disso:
@@ -196,26 +208,27 @@ Dado um agendamento e uma data, ele aparece naquele dia se:
 
 Nunca mostre ocorrências antes de `inicio`.
 
-### Card do treino agendado
-Cada agendamento aparece num card destacado com:
-- Linha de contexto: a recorrência por extenso (`semanal · seg, qua`) e os tipos
-  com seus pontos coloridos.
-- Botões **abrir**, **salvar**, **excluir**. Excluir pede confirmação, avisando
-  quando vai remover todas as repetições.
+### Card do treino do dia
+Cada treino aparece num card destacado com:
+- Linha de contexto: a recorrência por extenso (`toda semana · seg, qua`) e os
+  tipos deduzidos. **Se não repete e não há tipos, a linha some** — nada de
+  escrever "não repete".
+- Botões **alterar**, **guardar**, **excluir**, de larguras iguais. Excluir pede
+  confirmação, avisando quando vai remover todas as repetições. **alterar**
+  reabre o montador no lugar do card.
 - **Prévia formatada** do treino (não uma caixa de edição): cabeçalhos de área
   em maiúsculas, exercícios como linhas com as séries alinhadas à direita em
   fonte monoespaçada. Limite a 6 linhas e mostre `+N linhas — toque para ver
   tudo`. Tocar na prévia abre a tela cheia.
-- **salvar** abre nome + categoria (pré-sugerida) e grava na biblioteca. Com
-  vários agendamentos no mesmo dia, só um painel fica aberto por vez, e a
-  mensagem de confirmação deve carregar o id do agendamento para aparecer sob
-  o card certo.
+- **guardar** abre nome + categoria (pré-sugerida) e grava na biblioteca. Com
+  vários treinos no mesmo dia, só um painel fica aberto por vez, e a mensagem de
+  confirmação deve carregar o id do treino para aparecer sob o card certo.
 
 #### Sugestão de categoria ao salvar
 Conte os cabeçalhos de área distintos no texto: **dois ou mais ⇒ `combinado`**;
-exatamente um ⇒ aquela área. Sem cabeçalho, se o único tipo marcado for
-aeróbico use `aerobico`; senão `peito`. A mesma função serve o agendamento e o
-compositor da biblioteca.
+exatamente um ⇒ aquela área. Sem cabeçalho, se o único tipo do treino for
+aeróbico use `aerobico`; senão `combinado`. A mesma função serve o treino do dia
+e a biblioteca.
 
 ## 6. Tela cheia do treino (o "abrir")
 
@@ -280,29 +293,29 @@ tipos, dizendo visualmente "mistura". Na listra vertical de 3px à esquerda dos
 itens, empilhe as três cores de cima para baixo: o corte diagonal some numa
 faixa tão estreita.
 
-#### Compositor "Montar e salvar treino"
-Botão em destaque no topo da sub-aba. Abre um formulário com **três formas de
-montar, combináveis**:
-1. **Escrita livre** na caixa de texto.
-2. **`+ juntar treino`** — lista os treinos salvos agrupados por categoria; cada
-   toque acrescenta o treino **inteiro** como uma seção. Se o treino de origem
-   não tiver cabeçalho próprio, ele entra sob o nome da sua categoria em
-   maiúsculas, para o resultado sair organizado.
-3. **`+ exercícios`** — o mesmo seletor do agendamento, inserindo exercício a
-   exercício agrupado por área.
+#### Editor de treino
+**Um único** botão `+ Novo treino` no topo da sub-aba — nada de um `+ novo` por
+categoria. O editor é: nome + o **montador do §5.1** + `Guardar em` (categoria).
 
-Mais nome e categoria. A **categoria se ajusta sozinha** ao conteúdo (duas ou
-mais áreas ⇒ Combinado; uma só ⇒ aquela área), e para de se ajustar assim que o
-usuário escolher uma à mão. Salvar exige nome e texto.
+A **categoria se ajusta sozinha** ao conteúdo enquanto o treino é novo (duas ou
+mais áreas ⇒ Combinado; uma só ⇒ aquela área) e para assim que o usuário
+escolher uma à mão. Se depois o conteúdo divergir da categoria escolhida, mostre
+uma sugestão discreta (`pelo conteúdo, seria X — mover`) — que só move se
+tocada: um treino arquivado nunca muda de gaveta sozinho.
 
-Cada categoria tem `+ novo`. Um item da lista mostra o nome e um resumo de uma
-linha: **`N exercícios`** (contando linhas iniciadas por `-`), ou a primeira
-linha que não seja cabeçalho. Tocar abre a edição inline: nome, texto, e os
-botões **Pronto**, **abrir** (tela cheia, §6) e **excluir** (com confirmação).
+Tocar num treino salvo abre **esse mesmo editor no lugar do card** — com juntar
+treinos, exercícios e ajustar lista, não só a caixa de texto. Botões **Pronto**,
+**abrir** (tela cheia, §6) e **excluir** (com confirmação). O treino em edição
+não aparece na própria lista de "treino salvo" (juntar consigo mesmo só
+duplicaria).
 
-Quando a biblioteca inteira está vazia, mostre **um único** card explicando as
-duas formas de criar treino — nunca repita "nenhum treino salvo" em cada
-categoria.
+Treino **novo** = rascunho até `Salvar treino` (exige nome e texto); treino **já
+salvo** grava a cada toque.
+
+**A lista mostra só o que existe**: grupos e categorias sem nenhum treino não
+aparecem. Um item mostra o nome e um resumo de uma linha: **`N exercícios`**
+(contando linhas iniciadas por `-`), ou a primeira linha que não seja cabeçalho.
+Com a biblioteca vazia, **um único** card explica para que serve.
 
 ### Sub-aba Exercícios (catálogo)
 Só nomes de exercícios, por área, nesta ordem: **Membros inferiores, Core,
@@ -313,6 +326,15 @@ Um exercício tem **nome** e **observação de execução** (opcional) — é es
 observação que aparece no "segurar" da tela cheia. Editar é inline, com
 **Pronto** e **excluir**. Se o usuário criar um exercício e sair sem digitar
 nome, **descarte-o** em vez de guardar uma linha vazia.
+
+**Caixa de busca** no topo (só quando há exercícios): filtra pelo nome a cada
+tecla, **ignorando acento e maiúscula** e casando em qualquer parte do nome —
+quem nomeia `[Quadríceps] Agachamento no Smith` acha por `smith` ou por
+`quadriceps`. O trecho encontrado fica destacado na cor da área; áreas sem
+resultado somem inteiras; `×` (ou Esc) limpa. Durante a busca, esconda os
+`+ novo` — criar ali produziria um item vazio que o filtro esconderia na hora.
+O exercício aberto para edição continua visível mesmo se o nome deixar de casar,
+para o card não sumir embaixo do dedo.
 
 Áreas vazias colapsam (só cabeçalho + `+ novo`); a dica de ajuda aparece uma
 única vez, quando o catálogo inteiro está vazio.

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { AreaEx, Cat, Exercicio } from "../types";
+import type { AreaEx, Cat, Exercicio, Tipo } from "../types";
 import { FONTE } from "../temas";
 import { useTema } from "../tema-ctx";
 import { uid } from "../dados";
@@ -100,6 +100,20 @@ function acharTrecho(nome: string, termo: string): [number, number] | null {
   const i = txt.indexOf(alvo);
   if (i === -1) return null;
   return [mapa[i], mapa[i + alvo.length - 1] + 1];
+}
+
+/** Força/core/aeróbico presentes no texto, lidos dos cabeçalhos de área. */
+export function tiposDoTexto(texto: string): Tipo[] {
+  const achados = new Set<Tipo>();
+  for (const linha of texto.split("\n")) {
+    const t = linha.trim().toUpperCase();
+    const area = AREAS.find((a) => a.rot.toUpperCase() === t);
+    if (area) {
+      const tp = tipoDaArea(area.id);
+      if (tp) achados.add(tp);
+    } else if (t === "AERÓBICO" || t === "AEROBICO") achados.add("a");
+  }
+  return (["f", "c", "a"] as Tipo[]).filter((t) => achados.has(t));
 }
 
 interface Props {
