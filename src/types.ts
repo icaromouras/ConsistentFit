@@ -27,7 +27,8 @@ export type Cat =
   | "costas"
   | "peito"
   | "inferiores"
-  | "mobilidade";
+  | "mobilidade"
+  | "combinado";
 
 export interface TreinoSalvo {
   id: string;
@@ -36,8 +37,11 @@ export interface TreinoSalvo {
   texto: string;
 }
 
-/** Áreas do catálogo de exercícios: as categorias de treino salvo, menos o aeróbico. */
-export type AreaEx = Exclude<Cat, "aerobico">;
+/**
+ * Áreas do catálogo de exercícios: as categorias de treino salvo, menos as que
+ * não descrevem um exercício — aeróbico e combinado (este agrupa treinos inteiros).
+ */
+export type AreaEx = Exclude<Cat, "aerobico" | "combinado">;
 
 export interface Exercicio {
   id: string;

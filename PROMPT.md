@@ -36,10 +36,10 @@ type TemaId = "papel" | "carbono" | "nevoa" | "fita";
 
 type Cat =
   | "peito" | "costas" | "ombro" | "biceps" | "triceps" | "inferiores"
-  | "core" | "aerobico" | "mobilidade";
+  | "core" | "aerobico" | "mobilidade" | "combinado";
 
-/** Áreas do catálogo de exercícios = categorias menos aeróbico. */
-type AreaEx = Exclude<Cat, "aerobico">;
+/** Áreas do catálogo: categorias menos as que não descrevem um exercício. */
+type AreaEx = Exclude<Cat, "aerobico" | "combinado">;
 
 interface DiaInfo  { f?: boolean; c?: boolean; a?: boolean; nota?: string }
 interface Agendamento {
@@ -212,8 +212,10 @@ Cada agendamento aparece num card destacado com:
   o card certo.
 
 #### Sugestão de categoria ao salvar
-Procure o primeiro cabeçalho de área no texto e use a categoria dele. Sem
-cabeçalho, se o único tipo marcado for aeróbico use `aerobico`; senão `peito`.
+Conte os cabeçalhos de área distintos no texto: **dois ou mais ⇒ `combinado`**;
+exatamente um ⇒ aquela área. Sem cabeçalho, se o único tipo marcado for
+aeróbico use `aerobico`; senão `peito`. A mesma função serve o agendamento e o
+compositor da biblioteca.
 
 ## 6. Tela cheia do treino (o "abrir")
 
@@ -267,10 +269,31 @@ principal não caberia em 320px).
 Treinos completos salvos, agrupados por:
 - **Força** — com subcategorias Peito, Costas, Ombro, Bíceps, Tríceps, Membros
   inferiores;
-- **Core**, **Aeróbico**, **Mobilidade** — cada um com uma categoria só.
+- **Core**, **Aeróbico**, **Mobilidade** — cada um com uma categoria só;
+- **Combinado** — treinos que juntam mais de um grupo muscular (ex: bíceps +
+  tríceps + core + mobilidade num treino só).
 
 Cada grupo tem um quadrado colorido: a cor do tipo correspondente; **Mobilidade
-usa um tom neutro**, porque não é força/core/aeróbico (ver §9).
+usa um tom neutro**, porque não é força/core/aeróbico (ver §9). **Combinado usa
+as três cores** — o mesmo corte diagonal das células de calendário com três
+tipos, dizendo visualmente "mistura". Na listra vertical de 3px à esquerda dos
+itens, empilhe as três cores de cima para baixo: o corte diagonal some numa
+faixa tão estreita.
+
+#### Compositor "Montar e salvar treino"
+Botão em destaque no topo da sub-aba. Abre um formulário com **três formas de
+montar, combináveis**:
+1. **Escrita livre** na caixa de texto.
+2. **`+ juntar treino`** — lista os treinos salvos agrupados por categoria; cada
+   toque acrescenta o treino **inteiro** como uma seção. Se o treino de origem
+   não tiver cabeçalho próprio, ele entra sob o nome da sua categoria em
+   maiúsculas, para o resultado sair organizado.
+3. **`+ exercícios`** — o mesmo seletor do agendamento, inserindo exercício a
+   exercício agrupado por área.
+
+Mais nome e categoria. A **categoria se ajusta sozinha** ao conteúdo (duas ou
+mais áreas ⇒ Combinado; uma só ⇒ aquela área), e para de se ajustar assim que o
+usuário escolher uma à mão. Salvar exige nome e texto.
 
 Cada categoria tem `+ novo`. Um item da lista mostra o nome e um resumo de uma
 linha: **`N exercícios`** (contando linhas iniciadas por `-`), ou a primeira

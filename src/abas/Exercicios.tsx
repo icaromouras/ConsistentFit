@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { AreaEx, Exercicio } from "../types";
+import type { AreaEx, Cat, Exercicio } from "../types";
 import { FONTE } from "../temas";
 import { useTema } from "../tema-ctx";
 import { uid } from "../dados";
@@ -46,6 +46,31 @@ export function inserirNoTexto(texto: string, area: AreaEx, nome: string): strin
 }
 
 export const rotuloArea = (a: AreaEx) => AREAS.find((x) => x.id === a)!.rot;
+
+/** Uma linha é cabeçalho quando está toda em maiúsculas e não é item de lista. */
+export const ehLinhaCabecalho = (linha: string) => {
+  const t = linha.trim();
+  return t.length >= 2 && !t.startsWith("-") && t === t.toUpperCase() && /\p{Lu}/u.test(t);
+};
+
+/**
+ * Categoria sugerida pelos cabeçalhos presentes no texto.
+ * Mais de um grupo muscular ⇒ "combinado". Devolve null se não der para inferir.
+ */
+export function sugerirCategoria(texto: string): Cat | null {
+  const areas = new Set<AreaEx>();
+  let temAerobico = false;
+  for (const linha of texto.split("\n")) {
+    const t = linha.trim().toUpperCase();
+    const area = AREAS.find((a) => a.rot.toUpperCase() === t);
+    if (area) areas.add(area.id);
+    else if (t === "AERÓBICO" || t === "AEROBICO") temAerobico = true;
+  }
+  if (areas.size + (temAerobico ? 1 : 0) > 1) return "combinado";
+  if (areas.size === 1) return [...areas][0];
+  if (temAerobico) return "aerobico";
+  return null;
+}
 
 interface Props {
   exercicios: Exercicio[];
