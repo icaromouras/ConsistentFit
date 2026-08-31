@@ -7,6 +7,11 @@ export interface DiaInfo {
   c?: boolean;
   a?: boolean;
   nota?: string;
+  /**
+   * Exercícios já feitos naquele dia, pelo nome em minúsculas. É marcação do
+   * dia (some com ele), não do treino: no dia seguinte a lista começa limpa.
+   */
+  feitos?: string[];
 }
 
 export interface Agendamento {
@@ -48,6 +53,9 @@ export interface Exercicio {
   area: AreaEx;
   nome: string;
   obs?: string; // dica de execução, opcional
+  /** carga da última vez, em texto livre: "20 kg", "placa 5", "12 cada lado" */
+  carga?: string;
+  cargaEm?: string; // data ISO em que a carga foi anotada
 }
 
 export type TemaId = "papel" | "carbono" | "nevoa" | "fita";

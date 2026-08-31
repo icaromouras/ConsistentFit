@@ -1,12 +1,17 @@
 import { useState } from "react";
-import type { Cat, Exercicio, TreinoSalvo } from "../types";
+import type { Cat, DiaInfo, Exercicio, TreinoSalvo } from "../types";
 import { FONTE, fundoTipos } from "../temas";
 import { useTema } from "../tema-ctx";
-import { uid } from "../dados";
+import { iso, uid } from "../dados";
 import { GRUPOS, ROT_CAT, grupoDe, type Grupo } from "../categorias";
 import ModalTreino from "./ModalTreino";
 import MontarTreino from "./MontarTreino";
 import { sugerirCategoria } from "./Exercicios";
+
+const hojeIso = () => {
+  const d = new Date();
+  return iso(d.getFullYear(), d.getMonth(), d.getDate());
+};
 
 /** Resumo de uma linha: conta exercícios; sem lista, mostra a 1ª linha que não é cabeçalho. */
 const resumoTreino = (texto: string): string => {
@@ -23,9 +28,13 @@ interface Props {
   addSalvo: (t: TreinoSalvo) => void;
   upSalvo: (id: string, patch: Partial<TreinoSalvo>) => void;
   delSalvo: (id: string) => void;
+  upEx: (id: string, patch: Partial<Exercicio>) => void;
+  /** o dia de hoje: seguir um treino guardado marca o que já foi feito hoje */
+  hoje: DiaInfo;
+  setDia: (patch: Partial<DiaInfo>) => void;
 }
 
-export default function Biblioteca({ salvos, exercicios, addSalvo, upSalvo, delSalvo }: Props) {
+export default function Biblioteca({ salvos, exercicios, addSalvo, upSalvo, delSalvo, upEx, hoje, setDia }: Props) {
   const { C, est, cor, tema } = useTema();
   const [aberto, setAberto] = useState<string | null>(null);
 
@@ -299,6 +308,10 @@ export default function Biblioteca({ salvos, exercicios, addSalvo, upSalvo, delS
           texto={salvoAberto.texto}
           onChange={(t) => upSalvo(salvoAberto.id, { texto: t })}
           onFechar={() => setAberto(null)}
+          feitos={hoje.feitos ?? []}
+          onFeitos={(nomes) => setDia({ feitos: nomes })}
+          diaFeitos="hoje"
+          onCarga={(id, carga) => upEx(id, { carga, cargaEm: carga ? hojeIso() : undefined })}
         />
       )}
     </>

@@ -4,7 +4,7 @@ import { DIA_CURTO, FONTE, MESES, SEM } from "../temas";
 import { useTema } from "../tema-ctx";
 import { parseIso, uid } from "../dados";
 import { GRUPOS, ROT_CAT } from "../categorias";
-import ModalTreino from "./ModalTreino";
+import ModalTreino, { progresso } from "./ModalTreino";
 import MontarTreino from "./MontarTreino";
 import { sugerirCategoria, tiposDoTexto } from "./Exercicios";
 
@@ -26,9 +26,10 @@ interface Props {
   upAg: (id: string, patch: Partial<Agendamento>) => void;
   delAg: (id: string) => void;
   addSalvo: (t: TreinoSalvo) => void;
+  upEx: (id: string, patch: Partial<Exercicio>) => void;
 }
 
-export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, addAg, upAg, delAg, addSalvo }: Props) {
+export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, addAg, upAg, delAg, addSalvo, upEx }: Props) {
   const { C, est, chip, tipos, tema } = useTema();
   const data = parseIso(k);
   const raizRef = useRef<HTMLDivElement>(null);
@@ -130,6 +131,7 @@ export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, add
   const MAX_LINHAS_PREVIA = 6;
   const previaTreino = (a: Agendamento) => {
     const linhas = a.texto.split("\n").filter((l) => l.trim());
+    const feito = progresso(a.texto, dia.feitos ?? []);
     return (
       <button
         onClick={() => setAberto(a.id)}
@@ -164,6 +166,11 @@ export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, add
         {linhas.length > MAX_LINHAS_PREVIA && (
           <div style={{ ...est.eyebrow, fontSize: 9, marginTop: 4 }}>
             +{linhas.length - MAX_LINHAS_PREVIA} {linhas.length - MAX_LINHAS_PREVIA === 1 ? "linha" : "linhas"} — toque para ver tudo
+          </div>
+        )}
+        {feito.feitos > 0 && (
+          <div style={{ ...est.eyebrow, fontSize: 9, marginTop: 6, color: C.forca }}>
+            {feito.feitos} de {feito.total} feitos
           </div>
         )}
       </button>
@@ -385,6 +392,9 @@ export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, add
           texto={agAberto.texto}
           onChange={(t) => upAg(agAberto.id, { texto: t, tipos: tiposDoTexto(t) })}
           onFechar={() => setAberto(null)}
+          feitos={dia.feitos ?? []}
+          onFeitos={(nomes) => setDia(k, { feitos: nomes })}
+          onCarga={(id, carga) => upEx(id, { carga, cargaEm: carga ? k : undefined })}
         />
       )}
     </div>

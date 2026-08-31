@@ -68,7 +68,7 @@ export default function App() {
       const atual = prev.dias[chave] || {};
       const novo = { ...atual, ...patch };
       const dias = { ...prev.dias };
-      if (!novo.f && !novo.c && !novo.a && !(novo.nota || "").trim()) delete dias[chave];
+      if (!novo.f && !novo.c && !novo.a && !(novo.nota || "").trim() && !novo.feitos?.length) delete dias[chave];
       else dias[chave] = novo;
       return { ...prev, dias };
     });
@@ -177,6 +177,7 @@ export default function App() {
             upAg={upAg}
             delAg={delAg}
             addSalvo={addSalvo}
+            upEx={upEx}
             totais={totais}
             hojeIso={hojeIso}
           />
@@ -204,7 +205,16 @@ export default function App() {
               ))}
             </div>
             {subTreinos === "salvos" ? (
-              <Biblioteca salvos={dados.salvos} exercicios={dados.exercicios} addSalvo={addSalvo} upSalvo={upSalvo} delSalvo={delSalvo} />
+              <Biblioteca
+                salvos={dados.salvos}
+                exercicios={dados.exercicios}
+                addSalvo={addSalvo}
+                upSalvo={upSalvo}
+                delSalvo={delSalvo}
+                upEx={upEx}
+                hoje={dados.dias[hojeIso] || {}}
+                setDia={(patch) => setDia(hojeIso, patch)}
+              />
             ) : (
               <Exercicios exercicios={dados.exercicios} addEx={addEx} upEx={upEx} delEx={delEx} />
             )}

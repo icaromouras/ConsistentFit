@@ -8,14 +8,24 @@ interface Props {
   titulo: string;
   subtitulo?: React.ReactNode;
   texto: string;
-  /** catálogo, para mostrar a observação de execução ao segurar um exercício */
+  /** catálogo, para a observação de execução e a carga de cada exercício */
   exercicios?: Exercicio[];
   onChange: (t: string) => void;
   onFechar: () => void;
+  /** exercícios já feitos (nomes normalizados); ausente = sem marcação de feito */
+  feitos?: string[];
+  onFeitos?: (nomes: string[]) => void;
+  /** grava a carga no catálogo */
+  onCarga?: (id: string, carga: string | undefined) => void;
+  /** a que dia as marcações pertencem, quando não é óbvio pelo título (ex: "hoje") */
+  diaFeitos?: string;
 }
 
 const SEGURAR_MS = 450;
 const TOLERANCIA_PX = 12; // arrastar mais que isso é rolagem, não "segurar"
+
+/** Chave de comparação de nomes de exercício, entre o texto do treino e o catálogo. */
+export const chaveNome = (n: string) => n.trim().toLowerCase();
 
 const areaDaLinha = (linha: string) =>
   AREAS.find((a) => linha.trim().toUpperCase() === a.rot.toUpperCase());
@@ -26,24 +36,59 @@ const ehTituloGenerico = (linha: string) => {
   return t.length >= 2 && t.length <= 40 && !t.startsWith("-") && /\p{Lu}/u.test(t) && !/\p{Ll}/u.test(t);
 };
 
-export default function ModalTreino({ titulo, subtitulo, texto, exercicios = [], onChange, onFechar }: Props) {
+/** Separa "- Nome — 4x10" em nome e detalhe. */
+export const partesDaLinha = (linha: string) => {
+  const conteudo = linha.trim().replace(/^-\s*/, "");
+  const sep = conteudo.indexOf("—");
+  return {
+    nome: sep === -1 ? conteudo : conteudo.slice(0, sep).trim(),
+    detalhe: sep === -1 ? "" : conteudo.slice(sep + 1).trim(),
+  };
+};
+
+/** Quantos exercícios o treino tem e quantos já foram feitos. */
+export function progresso(texto: string, feitos: string[]) {
+  const nomes = texto
+    .split("\n")
+    .filter((l) => l.trim().startsWith("-"))
+    .map((l) => chaveNome(partesDaLinha(l).nome))
+    .filter(Boolean);
+  const marcados = new Set(feitos);
+  return { total: nomes.length, feitos: nomes.filter((n) => marcados.has(n)).length };
+}
+
+const DIA_MES = (iso: string) => {
+  const [, m, d] = iso.split("-");
+  const meses = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+  return `${Number(d)}/${meses[Number(m) - 1]}`;
+};
+
+export default function ModalTreino({
+  titulo, subtitulo, texto, exercicios = [], onChange, onFechar,
+  feitos, onFeitos, onCarga, diaFeitos,
+}: Props) {
   const { C, est, tema, cor } = useTema();
   const [editando, setEditando] = useState(!texto.trim());
-  const [obsAberta, setObsAberta] = useState<Exercicio | null>(null);
+  const [detalhe, setDetalhe] = useState<Exercicio | null>(null);
+  const [cargaEdit, setCargaEdit] = useState<string | null>(null); // id do exercício
+  const [cargaValor, setCargaValor] = useState("");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inicioRef = useRef<{ x: number; y: number } | null>(null);
 
+  const marcavel = !!feitos && !!onFeitos;
+  const marcados = new Set(feitos ?? []);
+
   // ref para o handler de teclado ler o estado atual sem re-registrar o listener
-  const obsRef = useRef(obsAberta);
+  const detalheRef = useRef(detalhe);
   useEffect(() => {
-    obsRef.current = obsAberta;
-  }, [obsAberta]);
+    detalheRef.current = detalhe;
+  }, [detalhe]);
 
   useEffect(() => {
     const aoTeclar = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      // Escape fecha primeiro a caixa de observação; só depois o modal
-      if (obsRef.current) setObsAberta(null);
+      // Escape fecha primeiro a caixa de detalhe; só depois o modal
+      if (detalheRef.current) setDetalhe(null);
       else onFechar();
     };
     document.addEventListener("keydown", aoTeclar);
@@ -67,7 +112,7 @@ export default function ModalTreino({ titulo, subtitulo, texto, exercicios = [],
     cancelarSegurar();
     inicioRef.current = { x: e.clientX, y: e.clientY };
     timerRef.current = setTimeout(() => {
-      setObsAberta(ex);
+      setDetalhe(ex);
       navigator.vibrate?.(15);
       cancelarSegurar();
     }, SEGURAR_MS);
@@ -78,15 +123,30 @@ export default function ModalTreino({ titulo, subtitulo, texto, exercicios = [],
   };
 
   const acharExercicio = (nome: string): Exercicio | undefined =>
-    exercicios.find((ex) => ex.nome.trim().toLowerCase() === nome.trim().toLowerCase() && (ex.obs || "").trim());
+    exercicios.find((ex) => chaveNome(ex.nome) === chaveNome(nome));
+
+  const alternarFeito = (nome: string) => {
+    if (!onFeitos) return;
+    const k = chaveNome(nome);
+    if (!k) return;
+    navigator.vibrate?.(8);
+    onFeitos(marcados.has(k) ? (feitos ?? []).filter((n) => n !== k) : [...(feitos ?? []), k]);
+  };
+
+  const abrirCarga = (ex: Exercicio) => {
+    setCargaEdit(ex.id);
+    setCargaValor(ex.carga || "");
+  };
+  const gravarCarga = (ex: Exercicio) => {
+    onCarga?.(ex.id, cargaValor.trim() || undefined);
+    setCargaEdit(null);
+  };
 
   const linhas = texto.split("\n");
+  const conta = progresso(texto, feitos ?? []);
   const temAlgumaObs = !editando && linhas.some((l) => {
-    const t = l.trim();
-    if (!t.startsWith("-")) return false;
-    const conteudo = t.replace(/^-\s*/, "");
-    const sep = conteudo.indexOf("—");
-    return !!acharExercicio(sep === -1 ? conteudo : conteudo.slice(0, sep));
+    if (!l.trim().startsWith("-")) return false;
+    return !!acharExercicio(partesDaLinha(l).nome)?.obs?.trim();
   });
 
   const visualizacao = (
@@ -111,44 +171,109 @@ export default function ModalTreino({ titulo, subtitulo, texto, exercicios = [],
         }
 
         if (t.startsWith("-")) {
-          const conteudo = t.replace(/^-\s*/, "");
-          const sep = conteudo.indexOf("—");
-          const nome = sep === -1 ? conteudo : conteudo.slice(0, sep).trim();
-          const detalhe = sep === -1 ? "" : conteudo.slice(sep + 1).trim();
+          const { nome, detalhe: det } = partesDaLinha(t);
           const ex = acharExercicio(nome);
+          const feito = marcados.has(chaveNome(nome));
+          const editandoCarga = !!ex && cargaEdit === ex.id;
           return (
-            <div
-              key={i}
-              style={{
-                display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10,
-                padding: "7px 0", borderBottom: `1px solid ${C.deep}`,
-                ...(ex && {
-                  userSelect: "none" as const,
-                  WebkitUserSelect: "none" as const,
-                  WebkitTouchCallout: "none",
-                  cursor: "pointer",
-                  touchAction: "pan-y" as const,
-                }),
-              }}
-              {...(ex && {
-                onPointerDown: (e: React.PointerEvent) => iniciarSegurar(e, ex),
-                onPointerMove: moverSegurar,
-                onPointerUp: cancelarSegurar,
-                onPointerLeave: cancelarSegurar,
-                onPointerCancel: cancelarSegurar,
-                onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
-              })}
-            >
-              <span style={{ fontSize: 15, lineHeight: 1.45, color: C.ink }}>
-                {nome}
-                {ex && (
-                  <span aria-hidden style={{ ...est.num, fontSize: 10, color: C.soft, marginLeft: 6, border: `1px solid ${C.line}`, borderRadius: "50%", width: 15, height: 15, display: "inline-flex", alignItems: "center", justifyContent: "center", verticalAlign: "2px" }}>
-                    i
-                  </span>
+            <div key={i} style={{ padding: "7px 0", borderBottom: `1px solid ${C.deep}` }}>
+              <div
+                style={{
+                  display: "flex", alignItems: "baseline", gap: 10,
+                  ...(ex && {
+                    userSelect: "none" as const,
+                    WebkitUserSelect: "none" as const,
+                    WebkitTouchCallout: "none",
+                    touchAction: "pan-y" as const,
+                  }),
+                }}
+                {...(ex && {
+                  onPointerDown: (e: React.PointerEvent) => iniciarSegurar(e, ex),
+                  onPointerMove: moverSegurar,
+                  onPointerUp: cancelarSegurar,
+                  onPointerLeave: cancelarSegurar,
+                  onPointerCancel: cancelarSegurar,
+                  onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+                })}
+              >
+                {marcavel && (
+                  <button
+                    onClick={() => alternarFeito(nome)}
+                    aria-pressed={feito}
+                    aria-label={`${feito ? "Desmarcar" : "Marcar como feito"}: ${nome}`}
+                    style={{
+                      flexShrink: 0, width: 24, height: 24, alignSelf: "center", cursor: "pointer",
+                      borderRadius: Math.max(4, tema.raioP - 3),
+                      border: `1.5px solid ${feito ? C.ink : C.line}`,
+                      background: feito ? C.ink : "transparent",
+                      color: C.paper, fontSize: 14, lineHeight: 1,
+                      display: "flex", alignItems: "center", justifyContent: "center", padding: 0,
+                    }}
+                  >
+                    {feito ? "✓" : ""}
+                  </button>
                 )}
-              </span>
-              {detalhe && (
-                <span style={{ ...est.num, fontSize: 13, color: C.soft, whiteSpace: "nowrap", flexShrink: 0 }}>{detalhe}</span>
+
+                <span
+                  onClick={marcavel ? () => alternarFeito(nome) : undefined}
+                  style={{
+                    flex: 1, fontSize: 15, lineHeight: 1.45,
+                    color: feito ? C.soft : C.ink,
+                    textDecoration: feito ? "line-through" : "none",
+                    cursor: marcavel ? "pointer" : ex ? "pointer" : "default",
+                  }}
+                >
+                  {nome}
+                  {ex?.obs?.trim() && (
+                    <span aria-hidden style={{ ...est.num, fontSize: 10, color: C.soft, marginLeft: 6, border: `1px solid ${C.line}`, borderRadius: "50%", width: 15, height: 15, display: "inline-flex", alignItems: "center", justifyContent: "center", verticalAlign: "2px" }}>
+                      i
+                    </span>
+                  )}
+                </span>
+
+                {det && (
+                  <span style={{ ...est.num, fontSize: 13, color: C.soft, whiteSpace: "nowrap", flexShrink: 0 }}>{det}</span>
+                )}
+              </div>
+
+              {ex && onCarga && (
+                <div style={{ marginLeft: marcavel ? 34 : 0, marginTop: 3 }}>
+                  {editandoCarga ? (
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <input
+                        value={cargaValor}
+                        autoFocus
+                        onChange={(e) => setCargaValor(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") gravarCarga(ex);
+                          if (e.key === "Escape") { e.stopPropagation(); setCargaEdit(null); }
+                        }}
+                        placeholder="ex: 20 kg, placa 5"
+                        aria-label={`Peso de ${nome}`}
+                        style={{ ...est.input, padding: "7px 9px", fontSize: 14, maxWidth: 200 }}
+                      />
+                      <button style={{ ...est.ghost, padding: "7px 11px", color: C.ink, borderColor: C.ink }} onClick={() => gravarCarga(ex)}>
+                        ok
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => abrirCarga(ex)}
+                      aria-label={ex.carga ? `Mudar o peso de ${nome}` : `Anotar o peso de ${nome}`}
+                      style={{
+                        ...est.num, fontSize: 11, cursor: "pointer",
+                        padding: "3px 8px", borderRadius: Math.max(3, tema.raioP - 3),
+                        border: `1px ${ex.carga ? "solid" : "dashed"} ${C.line}`,
+                        background: "transparent", color: ex.carga ? C.ink : C.soft,
+                      }}
+                    >
+                      {ex.carga ? ex.carga : "+ peso"}
+                      {ex.carga && ex.cargaEm && (
+                        <span style={{ color: C.soft, marginLeft: 6 }}>{DIA_MES(ex.cargaEm)}</span>
+                      )}
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           );
@@ -214,6 +339,32 @@ export default function ModalTreino({ titulo, subtitulo, texto, exercicios = [],
           </div>
         </div>
 
+        {/* barra de progresso do treino: quanto já foi feito */}
+        {marcavel && !editando && conta.total > 0 && (
+          // minHeight reserva o espaço do botão "limpar": sem isso a lista pula ao marcar o primeiro
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, minHeight: 30 }}>
+            <div style={{ flex: 1, height: 6, borderRadius: 3, background: C.deep, overflow: "hidden" }}>
+              <div
+                style={{
+                  width: `${(conta.feitos / conta.total) * 100}%`, height: "100%",
+                  background: C.ink, borderRadius: 3, transition: "width 140ms ease-out",
+                }}
+              />
+            </div>
+            <span style={{ ...est.num, fontSize: 11, color: C.soft, flexShrink: 0 }}>
+              {conta.feitos}/{conta.total} feitos{diaFeitos ? ` ${diaFeitos}` : ""}
+            </span>
+            {conta.feitos > 0 && (
+              <button
+                onClick={() => onFeitos?.([])}
+                style={{ ...est.ghost, padding: "5px 9px", fontSize: 9 }}
+              >
+                limpar
+              </button>
+            )}
+          </div>
+        )}
+
         {editando ? (
           <textarea
             value={texto}
@@ -235,18 +386,20 @@ export default function ModalTreino({ titulo, subtitulo, texto, exercicios = [],
           visualizacao
         )}
 
-        <p style={{ ...est.eyebrow, fontSize: 9, textAlign: "center", margin: "10px 0 0" }}>
+        <p style={{ ...est.eyebrow, fontSize: 9, textAlign: "center", margin: "10px 0 0", lineHeight: 1.6 }}>
           {editando
             ? "o que você escrever aqui é salvo automaticamente"
-            : temAlgumaObs
-              ? "segure um exercício com ⓘ para ver como executar · toque em editar para alterar"
-              : "toque em editar para alterar o treino"}
+            : [
+                // marcar é auto-explicativo pela caixinha; a dica cobre o que não é óbvio
+                onCarga ? "toque no peso para anotar a carga" : null,
+                temAlgumaObs ? "segure um exercício com ⓘ para ver como executar" : null,
+              ].filter(Boolean).join(" · ") || "toque em editar para alterar o treino"}
         </p>
       </div>
 
-      {obsAberta && (
+      {detalhe && (
         <div
-          onClick={() => setObsAberta(null)}
+          onClick={() => setDetalhe(null)}
           style={{
             position: "absolute", inset: 0, zIndex: 10,
             background: "rgba(0,0,0,0.45)",
@@ -255,7 +408,7 @@ export default function ModalTreino({ titulo, subtitulo, texto, exercicios = [],
         >
           <div
             role="dialog"
-            aria-label={`Execução de ${obsAberta.nome}`}
+            aria-label={`Execução de ${detalhe.nome}`}
             onClick={(e) => e.stopPropagation()}
             style={{
               width: "100%", maxWidth: 620, background: C.panel,
@@ -266,15 +419,28 @@ export default function ModalTreino({ titulo, subtitulo, texto, exercicios = [],
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-              <i style={{ width: 10, height: 10, borderRadius: 3, flexShrink: 0, display: "inline-block", background: tipoDaArea(obsAberta.area) ? cor(tipoDaArea(obsAberta.area)!) : C.soft }} />
-              <span style={{ ...est.eyebrow, fontSize: 10 }}>{rotuloArea(obsAberta.area)}</span>
+              <i style={{ width: 10, height: 10, borderRadius: 3, flexShrink: 0, display: "inline-block", background: tipoDaArea(detalhe.area) ? cor(tipoDaArea(detalhe.area)!) : C.soft }} />
+              <span style={{ ...est.eyebrow, fontSize: 10 }}>{rotuloArea(detalhe.area)}</span>
             </div>
             <div style={{ fontSize: 19, fontWeight: 700, letterSpacing: "-0.02em", color: C.ink, marginBottom: 10 }}>
-              {obsAberta.nome}
+              {detalhe.nome}
             </div>
-            <p style={{ margin: 0, fontSize: 15, lineHeight: 1.65, color: C.ink }}>{obsAberta.obs}</p>
+
+            {detalhe.carga && (
+              <div style={{ ...est.num, fontSize: 14, color: C.ink, marginBottom: 10 }}>
+                Última carga: {detalhe.carga}
+                {detalhe.cargaEm && <span style={{ color: C.soft }}> · {DIA_MES(detalhe.cargaEm)}</span>}
+              </div>
+            )}
+
+            {detalhe.obs?.trim()
+              ? <p style={{ margin: 0, fontSize: 15, lineHeight: 1.65, color: C.ink }}>{detalhe.obs}</p>
+              : <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: C.soft }}>
+                  Sem observação de execução. Você pode escrever uma em Treinos → Exercícios.
+                </p>}
+
             <button
-              onClick={() => setObsAberta(null)}
+              onClick={() => setDetalhe(null)}
               style={{ ...est.ghost, width: "100%", marginTop: 16, padding: "11px" }}
             >
               fechar

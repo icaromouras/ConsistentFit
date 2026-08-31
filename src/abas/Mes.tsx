@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { Agendamento, Dados, DiaInfo, Tipo, TreinoSalvo } from "../types";
+import type { Agendamento, Dados, DiaInfo, Exercicio, Tipo, TreinoSalvo } from "../types";
 import { FONTE, MESES, SEM, fundoTipos } from "../temas";
 import { useTema } from "../tema-ctx";
 import { agendadosNoDia, iso } from "../dados";
@@ -17,11 +17,12 @@ interface Props {
   upAg: (id: string, patch: Partial<Agendamento>) => void;
   delAg: (id: string) => void;
   addSalvo: (t: TreinoSalvo) => void;
+  upEx: (id: string, patch: Partial<Exercicio>) => void;
   totais: { f: number; c: number; a: number; dias: number };
   hojeIso: string;
 }
 
-export default function Mes({ dados, cursor, navegar, sel, setSel, setDia, addAg, upAg, delAg, addSalvo, totais, hojeIso }: Props) {
+export default function Mes({ dados, cursor, navegar, sel, setSel, setDia, addAg, upAg, delAg, addSalvo, upEx, totais, hojeIso }: Props) {
   const { C, est, tema, tipos } = useTema();
 
   const coresDoDia = (v?: DiaInfo): string[] => (v ? tipos.filter((t) => v[t.id]).map((t) => t.cor) : []);
@@ -139,6 +140,7 @@ export default function Mes({ dados, cursor, navegar, sel, setSel, setDia, addAg
           upAg={upAg}
           delAg={delAg}
           addSalvo={addSalvo}
+          upEx={upEx}
         />
       )}
 

@@ -148,7 +148,11 @@ export function lerBackup(texto: string): ResultadoImport | null {
       if (v.c === true) dia.c = true;
       if (v.a === true) dia.a = true;
       if (typeof v.nota === "string" && v.nota.trim()) dia.nota = v.nota;
-      if (dia.f || dia.c || dia.a || dia.nota) dias[k] = dia;
+      if (Array.isArray(v.feitos)) {
+        const feitos = v.feitos.filter((n): n is string => typeof n === "string" && !!n.trim()).slice(0, 200);
+        if (feitos.length) dia.feitos = feitos;
+      }
+      if (dia.f || dia.c || dia.a || dia.nota || dia.feitos) dias[k] = dia;
       else descartados++;
     });
   }
@@ -207,11 +211,15 @@ export function lerBackup(texto: string): ResultadoImport | null {
         descartados++;
         return;
       }
+      const carga = typeof e.carga === "string" && e.carga.trim() ? e.carga.slice(0, 60) : undefined;
       exercicios.push({
         id: idUnico(e.id),
         area: e.area as AreaEx,
         nome: e.nome,
         obs: typeof e.obs === "string" && e.obs.trim() ? e.obs : undefined,
+        carga,
+        // a data só faz sentido acompanhando uma carga
+        cargaEm: carga && typeof e.cargaEm === "string" && CHAVE_DIA.test(e.cargaEm) ? e.cargaEm : undefined,
       });
     });
   }

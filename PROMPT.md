@@ -41,7 +41,11 @@ type Cat =
 /** Áreas do catálogo: categorias menos as que não descrevem um exercício. */
 type AreaEx = Exclude<Cat, "aerobico" | "combinado">;
 
-interface DiaInfo  { f?: boolean; c?: boolean; a?: boolean; nota?: string }
+interface DiaInfo  {
+  f?: boolean; c?: boolean; a?: boolean;
+  nota?: string;
+  feitos?: string[];     // exercícios já feitos naquele dia, em minúsculas
+}
 interface Agendamento {
   id: string;
   texto: string;
@@ -51,7 +55,12 @@ interface Agendamento {
   diasSemana: number[];  // 0=domingo … 6=sábado (usado em semanal/quinzenal)
 }
 interface TreinoSalvo { id: string; cat: Cat; nome: string; texto: string }
-interface Exercicio   { id: string; area: AreaEx; nome: string; obs?: string }
+interface Exercicio   {
+  id: string; area: AreaEx; nome: string;
+  obs?: string;          // dica de execução
+  carga?: string;        // "20 kg", "placa 5" — texto livre
+  cargaEm?: string;      // "AAAA-MM-DD" em que a carga foi anotada
+}
 
 interface Dados {
   dias: Record<string, DiaInfo>;   // chave "AAAA-MM-DD"
@@ -232,11 +241,19 @@ e a biblioteca.
 
 ## 6. Tela cheia do treino (o "abrir")
 
+É aqui que se **acompanha o treino enquanto ele acontece**: marcar o que já foi
+feito e anotar a carga de cada exercício.
+
 Modal que ocupa a tela inteira, respeitando os recortes do aparelho
 (`env(safe-area-inset-*)`), com a rolagem do fundo travada enquanto aberto.
 
 Cabeçalho: título (data ou nome do treino), subtítulo de contexto, e os botões
 `editar`/`ver` e `Fechar`.
+
+Logo abaixo do cabeçalho, quando o treino tem exercícios e o dia é conhecido,
+uma **barra de progresso** com `N/M feitos` e um botão `limpar`. Reserve a altura
+dessa faixa (`minHeight`) para a lista não pular quando o botão `limpar` surgir
+ao marcar o primeiro exercício.
 
 **Dois modos:**
 
@@ -247,17 +264,28 @@ Cabeçalho: título (data ou nome do treino), subtítulo de contexto, e os botõ
     com `-`) ⇒ também vira título — assim o usuário cria seções próprias como
     `OBSERVAÇÕES`.
   - Linha começando com `-` ⇒ item: nome à esquerda, o que vier depois do `—`
-    à direita em fonte monoespaçada (as séries).
+    à direita em fonte monoespaçada (as séries). Cada item ganha ainda:
+    - uma **caixa de marcar** à esquerda (em **toda** linha de exercício, esteja
+      ela no catálogo ou não). Marcado = caixa preenchida e nome riscado; tocar
+      no nome também alterna. As marcações pertencem **ao dia**, não ao treino:
+      guardadas em `dias[chave].feitos` pelo nome em minúsculas, começam limpas
+      no dia seguinte e somem com o dia. Um treino aberto pela biblioteca marca
+      no dia de **hoje** (diga isso no rótulo do progresso).
+    - uma **etiqueta de carga** abaixo do nome, só para exercícios do catálogo:
+      mostra `20 kg 14/ago` ou, vazia, um `+ peso` tracejado. Tocar abre um campo
+      inline; gravar escreve no **catálogo**, carimbando a data do dia que está
+      sendo visto (não necessariamente hoje).
   - Demais linhas ⇒ parágrafo simples.
 - **Edição**: a caixa de texto crua, com fonte de **16px** (abaixo disso o iOS
   dá zoom automático ao focar). Salva automaticamente. Um treino vazio abre
   direto neste modo.
 
-**Segurar para ver a execução:** se o nome de um item bate (ignorando
-maiúsculas) com um exercício do catálogo **que tenha observação preenchida**,
-mostre um marcador `ⓘ` ao lado do nome. Pressionar e segurar por ~450ms abre
-uma folha inferior com área, nome e a explicação. Detalhes que fazem o gesto
-funcionar no celular:
+**Segurar para ver o exercício:** o marcador `ⓘ` aparece ao lado do nome quando
+o exercício do catálogo **tem observação preenchida**; segurar por ~450ms abre
+uma folha inferior com área, nome, a **última carga com a data** e a explicação.
+A folha abre para **qualquer** exercício do catálogo — sem observação, ela diz
+onde escrever uma, em vez de o gesto morrer sem resposta. Detalhes que fazem o
+gesto funcionar no celular:
 
 - arrastar mais de ~12px cancela (é rolagem, não um "segurar");
 - toque rápido não faz nada;
@@ -270,8 +298,9 @@ funcionar no celular:
   outro componente.
 
 O vínculo é **por nome**, não por id: assim uma linha digitada à mão também
-ganha a explicação, e editar a observação no catálogo atualiza todos os treinos
-(não fica cópia congelada).
+ganha a explicação e a carga, e editar qualquer um dos dois no catálogo atualiza
+todos os treinos (não fica cópia congelada). O mesmo vale para a marcação de
+feito, que é guardada por nome.
 
 ## 7. Aba Treinos — duas sub-abas
 
@@ -322,10 +351,14 @@ Só nomes de exercícios, por área, nesta ordem: **Membros inferiores, Core,
 Peito, Ombro, Bíceps, Tríceps, Costas, Mobilidade**. Cada área mostra a
 contagem e um `+ novo`.
 
-Um exercício tem **nome** e **observação de execução** (opcional) — é essa
-observação que aparece no "segurar" da tela cheia. Editar é inline, com
-**Pronto** e **excluir**. Se o usuário criar um exercício e sair sem digitar
-nome, **descarte-o** em vez de guardar uma linha vazia.
+Um exercício tem **nome**, **observação de execução** (opcional) — é essa
+observação que aparece no "segurar" da tela cheia — e a **carga** (opcional),
+texto livre (`20 kg`, `placa 5`, `12 cada lado`) com a data em que foi anotada.
+A carga é a memória de quanto se levantou da última vez: ela é a mesma vista e
+editada na tela cheia do treino (§6), e a data se atualiza sozinha a cada
+alteração. Na lista, a carga aparece como uma etiqueta à direita do nome.
+Editar é inline, com **Pronto** e **excluir**. Se o usuário criar um exercício e
+sair sem digitar nome, **descarte-o** em vez de guardar uma linha vazia.
 
 **Caixa de busca** no topo (só quando há exercícios): filtra pelo nome a cada
 tecla, **ignorando acento e maiúscula** e casando em qualquer parte do nome —

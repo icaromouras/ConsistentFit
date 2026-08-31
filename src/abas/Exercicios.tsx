@@ -2,7 +2,18 @@ import { useState } from "react";
 import type { AreaEx, Cat, Exercicio, Tipo } from "../types";
 import { FONTE } from "../temas";
 import { useTema } from "../tema-ctx";
-import { uid } from "../dados";
+import { iso, uid } from "../dados";
+
+const hojeIso = () => {
+  const d = new Date();
+  return iso(d.getFullYear(), d.getMonth(), d.getDate());
+};
+
+const MES_CURTO = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const diaMes = (chave: string) => {
+  const [, m, d] = chave.split("-");
+  return `${Number(d)}/${MES_CURTO[Number(m) - 1]}`;
+};
 
 export const AREAS: { id: AreaEx; rot: string }[] = [
   { id: "inferiores", rot: "Membros inferiores" },
@@ -158,7 +169,7 @@ export default function Exercicios({ exercicios, addEx, upEx, delEx }: Props) {
   return (
     <>
       <p style={{ ...est.eyebrow, marginBottom: 16 }}>
-        Só o nome (e uma observação, se quiser) — use-os para montar treinos ao agendar
+        Nome, observação de execução e a carga da última vez — use-os para montar o treino do dia
       </p>
 
       {exercicios.length > 0 && (
@@ -250,6 +261,22 @@ export default function Exercicios({ exercicios, addEx, upEx, delEx }: Props) {
                     placeholder="Observação de execução (opcional)"
                     style={{ ...est.input, marginBottom: 8, fontSize: 13 }}
                   />
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+                    <input
+                      value={e.carga || ""}
+                      onChange={(ev) => {
+                        const carga = ev.target.value;
+                        // a data acompanha a carga: sem carga, não há "última vez"
+                        upEx(e.id, { carga, cargaEm: carga.trim() ? hojeIso() : undefined });
+                      }}
+                      placeholder="Peso / carga (ex: 20 kg, placa 5)"
+                      aria-label="Peso ou carga do exercício"
+                      style={{ ...est.input, fontSize: 13 }}
+                    />
+                    {(e.carga || "").trim() && e.cargaEm && (
+                      <span style={{ ...est.num, fontSize: 10, color: C.soft, flexShrink: 0 }}>{diaMes(e.cargaEm)}</span>
+                    )}
+                  </div>
                   <div style={{ display: "flex", gap: 8 }}>
                     <button
                       style={{ flex: 1, padding: "9px", borderRadius: tema.raioP - 1, border: "none", background: C.ink, color: C.onDark, fontFamily: FONTE.mono, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer" }}
@@ -285,7 +312,14 @@ export default function Exercicios({ exercicios, addEx, upEx, delEx }: Props) {
                     fontFamily: FONTE.sans, fontSize: 14, color: C.ink,
                   }}
                 >
-                  <span style={{ fontWeight: 600 }}>{nomeRealcado(e.nome, corArea)}</span>
+                  <span style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                    <span style={{ fontWeight: 600, flex: 1 }}>{nomeRealcado(e.nome, corArea)}</span>
+                    {(e.carga || "").trim() && (
+                      <span style={{ ...est.num, fontSize: 11, color: C.ink, flexShrink: 0, border: `1px solid ${C.line}`, borderRadius: 4, padding: "2px 6px" }}>
+                        {e.carga}
+                      </span>
+                    )}
+                  </span>
                   {(e.obs || "").trim() && (
                     <span style={{ display: "block", color: C.soft, fontSize: 12, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {e.obs}
