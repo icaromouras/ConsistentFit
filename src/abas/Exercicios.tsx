@@ -113,6 +113,26 @@ function acharTrecho(nome: string, termo: string): [number, number] | null {
   return [mapa[i], mapa[i + alvo.length - 1] + 1];
 }
 
+/**
+ * Lê o subgrupo escrito no começo do nome — "[Superior] Supino inclinado" — e o
+ * devolve separado. Só vale como subgrupo quando os colchetes e o resto do nome
+ * têm conteúdo: "[Superior]" sozinho continua sendo o nome inteiro do exercício.
+ */
+export function partirSubgrupo(nome: string): { grupo: string | null; nome: string } {
+  const m = nome.match(/^\s*\[([^\]]*)\]\s*(.*)$/);
+  if (!m) return { grupo: null, nome };
+  const grupo = m[1].trim();
+  const resto = m[2].trim();
+  if (!grupo || !resto) return { grupo: null, nome };
+  return { grupo, nome: resto };
+}
+
+/**
+ * Ordem alfabética como se espera em português: sem pesar maiúsculas nem
+ * acentos, e lendo número como número ("Prancha 2" antes de "Prancha 10").
+ */
+const emOrdem = (a: string, b: string) => a.localeCompare(b, "pt-BR", { sensitivity: "base", numeric: true });
+
 /** Força/core/aeróbico presentes no texto, lidos dos cabeçalhos de área. */
 export function tiposDoTexto(texto: string): Tipo[] {
   const achados = new Set<Tipo>();
@@ -137,7 +157,16 @@ interface Props {
 export default function Exercicios({ exercicios, addEx, upEx, delEx }: Props) {
   const { C, est, cor, tema } = useTema();
   const [editando, setEditando] = useState<string | null>(null);
+  const [ancora, setAncora] = useState("");
   const [busca, setBusca] = useState("");
+
+  // agrupar e ordenar pelo nome de quando a edição começou: senão o card
+  // saltaria de seção — e de posição dentro dela — a cada letra digitada
+  const abrirEdicao = (e: Exercicio) => {
+    setEditando(e.id);
+    setAncora(e.nome);
+  };
+  const nomeEstavel = (e: Exercicio) => (e.id === editando ? ancora : e.nome);
 
   const termo = busca.trim();
   const buscando = termo !== "";
@@ -149,8 +178,36 @@ export default function Exercicios({ exercicios, addEx, upEx, delEx }: Props) {
   const novo = (area: AreaEx) => {
     const e: Exercicio = { id: uid(), area, nome: "" };
     addEx(e);
-    setEditando(e.id);
+    abrirEdicao(e);
     setBusca("");
+  };
+
+  /**
+   * Exercícios da área repartidos em: os sem subgrupo, que abrem a lista, e uma
+   * seção por subgrupo. Tudo em ordem alfabética — as seções entre si e os
+   * exercícios dentro de cada uma, pelo nome já sem o colchete.
+   */
+  const repartir = (itens: Exercicio[]) => {
+    const soltos: Exercicio[] = [];
+    const grupos = new Map<string, { rot: string; itens: Exercicio[] }>();
+    for (const e of itens) {
+      const { grupo } = partirSubgrupo(nomeEstavel(e));
+      if (!grupo) {
+        soltos.push(e);
+        continue;
+      }
+      // "[Medio]" e "[Médio]" são o mesmo subgrupo; vale a primeira grafia escrita
+      const chave = normalizar(grupo);
+      const achado = grupos.get(chave);
+      if (achado) achado.itens.push(e);
+      else grupos.set(chave, { rot: grupo, itens: [e] });
+    }
+    const porNome = (a: Exercicio, b: Exercicio) =>
+      emOrdem(partirSubgrupo(nomeEstavel(a)).nome, partirSubgrupo(nomeEstavel(b)).nome);
+    soltos.sort(porNome);
+    const secoes = [...grupos].map(([chave, g]) => ({ chave, ...g })).sort((a, b) => emOrdem(a.rot, b.rot));
+    secoes.forEach((s) => s.itens.sort(porNome));
+    return { soltos, secoes };
   };
 
   /** Nome com o trecho buscado em destaque. */
@@ -165,6 +222,91 @@ export default function Exercicios({ exercicios, addEx, upEx, delEx }: Props) {
       </>
     );
   };
+
+  /** O exercício na lista: cartão de edição quando aberto, botão quando não. */
+  const renderItem = (e: Exercicio, corArea: string) =>
+    editando === e.id ? (
+      <div key={e.id} style={{ ...est.card, padding: 12, marginBottom: 6, borderLeft: `3px solid ${corArea}` }}>
+        <input
+          value={e.nome}
+          autoFocus
+          onChange={(ev) => upEx(e.id, { nome: ev.target.value })}
+          placeholder="Nome do exercício (ex: [Superior] supino inclinado)"
+          style={{ ...est.input, marginBottom: 8, fontWeight: 600 }}
+        />
+        <input
+          value={e.obs || ""}
+          onChange={(ev) => upEx(e.id, { obs: ev.target.value })}
+          placeholder="Observação de execução (opcional)"
+          style={{ ...est.input, marginBottom: 8, fontSize: 13 }}
+        />
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+          <input
+            value={e.carga || ""}
+            onChange={(ev) => {
+              const carga = ev.target.value;
+              // a data acompanha a carga: sem carga, não há "última vez"
+              upEx(e.id, { carga, cargaEm: carga.trim() ? hojeIso() : undefined });
+            }}
+            placeholder="Peso / carga (ex: 20 kg, placa 5)"
+            aria-label="Peso ou carga do exercício"
+            style={{ ...est.input, fontSize: 13 }}
+          />
+          {(e.carga || "").trim() && e.cargaEm && (
+            <span style={{ ...est.num, fontSize: 10, color: C.soft, flexShrink: 0 }}>{diaMes(e.cargaEm)}</span>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            style={{ flex: 1, padding: "9px", borderRadius: tema.raioP - 1, border: "none", background: C.ink, color: C.onDark, fontFamily: FONTE.mono, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer" }}
+            onClick={() => {
+              // um exercício sem nome não serve para nada: descarta em vez de guardar vazio
+              if (!e.nome.trim()) delEx(e.id);
+              setEditando(null);
+            }}
+          >
+            Pronto
+          </button>
+          <button
+            style={{ ...est.ghost, color: C.aero, borderColor: C.aero }}
+            onClick={() => {
+              if (!e.nome.trim() || confirm(`Excluir "${e.nome}"?`)) {
+                delEx(e.id);
+                setEditando(null);
+              }
+            }}
+          >
+            excluir
+          </button>
+        </div>
+      </div>
+    ) : (
+      <button
+        key={e.id}
+        onClick={() => abrirEdicao(e)}
+        style={{
+          display: "block", width: "100%", textAlign: "left", marginBottom: 5,
+          background: C.panel, border: `1px solid ${C.line}`, borderLeft: `3px solid ${corArea}`,
+          borderRadius: tema.raioP - 1, padding: "9px 12px", cursor: "pointer",
+          fontFamily: FONTE.sans, fontSize: 14, color: C.ink,
+        }}
+      >
+        <span style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+          {/* o subgrupo já é o título da seção: o nome aparece sem o colchete */}
+          <span style={{ fontWeight: 600, flex: 1 }}>{nomeRealcado(partirSubgrupo(e.nome).nome, corArea)}</span>
+          {(e.carga || "").trim() && (
+            <span style={{ ...est.num, fontSize: 11, color: C.ink, flexShrink: 0, border: `1px solid ${C.line}`, borderRadius: 4, padding: "2px 6px" }}>
+              {e.carga}
+            </span>
+          )}
+        </span>
+        {(e.obs || "").trim() && (
+          <span style={{ display: "block", color: C.soft, fontSize: 12, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {e.obs}
+          </span>
+        )}
+      </button>
+    );
 
   return (
     <>
@@ -226,6 +368,7 @@ export default function Exercicios({ exercicios, addEx, upEx, delEx }: Props) {
         if (buscando && itens.length === 0) return null;
         const t = tipoDaArea(area.id);
         const corArea = t ? cor(t) : C.soft;
+        const { soltos, secoes } = repartir(itens);
         return (
           <div key={area.id} style={{ marginBottom: 18 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
@@ -245,89 +388,17 @@ export default function Exercicios({ exercicios, addEx, upEx, delEx }: Props) {
               )}
             </div>
 
-            {itens.map((e) =>
-              editando === e.id ? (
-                <div key={e.id} style={{ ...est.card, padding: 12, marginBottom: 6, borderLeft: `3px solid ${corArea}` }}>
-                  <input
-                    value={e.nome}
-                    autoFocus
-                    onChange={(ev) => upEx(e.id, { nome: ev.target.value })}
-                    placeholder="Nome do exercício (ex: agachamento livre)"
-                    style={{ ...est.input, marginBottom: 8, fontWeight: 600 }}
-                  />
-                  <input
-                    value={e.obs || ""}
-                    onChange={(ev) => upEx(e.id, { obs: ev.target.value })}
-                    placeholder="Observação de execução (opcional)"
-                    style={{ ...est.input, marginBottom: 8, fontSize: 13 }}
-                  />
-                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
-                    <input
-                      value={e.carga || ""}
-                      onChange={(ev) => {
-                        const carga = ev.target.value;
-                        // a data acompanha a carga: sem carga, não há "última vez"
-                        upEx(e.id, { carga, cargaEm: carga.trim() ? hojeIso() : undefined });
-                      }}
-                      placeholder="Peso / carga (ex: 20 kg, placa 5)"
-                      aria-label="Peso ou carga do exercício"
-                      style={{ ...est.input, fontSize: 13 }}
-                    />
-                    {(e.carga || "").trim() && e.cargaEm && (
-                      <span style={{ ...est.num, fontSize: 10, color: C.soft, flexShrink: 0 }}>{diaMes(e.cargaEm)}</span>
-                    )}
-                  </div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button
-                      style={{ flex: 1, padding: "9px", borderRadius: tema.raioP - 1, border: "none", background: C.ink, color: C.onDark, fontFamily: FONTE.mono, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer" }}
-                      onClick={() => {
-                        // um exercício sem nome não serve para nada: descarta em vez de guardar vazio
-                        if (!e.nome.trim()) delEx(e.id);
-                        setEditando(null);
-                      }}
-                    >
-                      Pronto
-                    </button>
-                    <button
-                      style={{ ...est.ghost, color: C.aero, borderColor: C.aero }}
-                      onClick={() => {
-                        if (!e.nome.trim() || confirm(`Excluir "${e.nome}"?`)) {
-                          delEx(e.id);
-                          setEditando(null);
-                        }
-                      }}
-                    >
-                      excluir
-                    </button>
-                  </div>
+            {soltos.map((e) => renderItem(e, corArea))}
+
+            {secoes.map((s) => (
+              <div key={s.chave} style={{ marginTop: 10 }}>
+                <div style={{ ...est.eyebrow, fontSize: 10, letterSpacing: "0.1em", display: "flex", alignItems: "center", gap: 6, margin: "0 0 5px 2px" }}>
+                  {s.rot}
+                  <span style={{ ...est.num, fontSize: 10, opacity: 0.75 }}>{s.itens.length}</span>
                 </div>
-              ) : (
-                <button
-                  key={e.id}
-                  onClick={() => setEditando(e.id)}
-                  style={{
-                    display: "block", width: "100%", textAlign: "left", marginBottom: 5,
-                    background: C.panel, border: `1px solid ${C.line}`, borderLeft: `3px solid ${corArea}`,
-                    borderRadius: tema.raioP - 1, padding: "9px 12px", cursor: "pointer",
-                    fontFamily: FONTE.sans, fontSize: 14, color: C.ink,
-                  }}
-                >
-                  <span style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                    <span style={{ fontWeight: 600, flex: 1 }}>{nomeRealcado(e.nome, corArea)}</span>
-                    {(e.carga || "").trim() && (
-                      <span style={{ ...est.num, fontSize: 11, color: C.ink, flexShrink: 0, border: `1px solid ${C.line}`, borderRadius: 4, padding: "2px 6px" }}>
-                        {e.carga}
-                      </span>
-                    )}
-                  </span>
-                  {(e.obs || "").trim() && (
-                    <span style={{ display: "block", color: C.soft, fontSize: 12, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {e.obs}
-                    </span>
-                  )}
-                </button>
-              )
-            )}
+                {s.itens.map((e) => renderItem(e, corArea))}
+              </div>
+            ))}
           </div>
         );
       })}

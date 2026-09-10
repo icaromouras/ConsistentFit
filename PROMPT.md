@@ -351,6 +351,23 @@ Só nomes de exercícios, por área, nesta ordem: **Membros inferiores, Core,
 Peito, Ombro, Bíceps, Tríceps, Costas, Mobilidade**. Cada área mostra a
 contagem e um `+ novo`.
 
+**Subgrupos pelo nome.** Um nome que começa com `[Algo]` — `[Superior] Supino
+inclinado` — declara o subgrupo muscular daquele exercício. Dentro da área, os
+exercícios com subgrupo viram **seções** com um título pequeno em maiúsculas
+(`SUPERIOR`) e a contagem ao lado; os sem subgrupo abrem a lista, sem título. As
+seções vêm em ordem alfabética, e os exercícios dentro de cada uma também, pelo
+nome **já sem o colchete** — que é como o nome aparece na lista, já que o
+subgrupo virou o título. Ordenação alfabética ignora acento e maiúscula e lê
+número como número (`Prancha 2` antes de `Prancha 10`); `[Medio]` e `[Médio]`
+são o mesmo subgrupo, exibido com a primeira grafia escrita. `[Superior]`
+sozinho, sem nome depois, não é subgrupo: continua sendo o nome inteiro.
+O colchete é só apresentação do catálogo — o **nome completo** é o que vai para
+o texto do treino e o que casa com o catálogo na tela cheia (§6).
+
+Enquanto um exercício está aberto para edição, agrupe e ordene pelo nome de
+**quando a edição começou**: senão o card saltaria de seção, e de posição dentro
+dela, a cada letra digitada. Ele se acomoda no lugar certo ao fechar com Pronto.
+
 Um exercício tem **nome**, **observação de execução** (opcional) — é essa
 observação que aparece no "segurar" da tela cheia — e a **carga** (opcional),
 texto livre (`20 kg`, `placa 5`, `12 cada lado`) com a data em que foi anotada.
