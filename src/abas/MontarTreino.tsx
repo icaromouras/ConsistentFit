@@ -5,6 +5,7 @@ import { useTema } from "../tema-ctx";
 import { GRUPOS, ROT_CAT } from "../categorias";
 import SeletorExercicios from "./SeletorExercicios";
 import { ehLinhaCabecalho, inserirNoTexto } from "./Exercicios";
+import { chaveNome, partesDaLinha } from "./ModalTreino";
 
 /** Remonta o texto descartando cabeçalhos que ficaram sem nenhum conteúdo embaixo. */
 function limparTexto(linhas: string[]): string {
@@ -73,6 +74,23 @@ export default function MontarTreino({ texto, onTexto, salvos, exercicios, ignor
 
   const disponiveis = salvos.filter((s) => s.id !== ignorar);
   const linhas = texto.split("\n").map((l, i) => ({ i, l })).filter(({ l }) => l.trim() !== "");
+
+  // quem já está no treino sai do próprio texto — assim vale também o que foi
+  // digitado à mão, e apagar a linha desmarca o exercício na hora
+  const ehItem = (l: string) => l.trim().startsWith("-");
+  const nomesNoTexto = new Set(
+    texto.split("\n").filter(ehItem).map((l) => chaveNome(partesDaLinha(l).nome))
+  );
+  const noTreino = new Set(
+    exercicios.filter((e) => nomesNoTexto.has(chaveNome(e.nome))).map((e) => e.id)
+  );
+
+  /** Tira do texto a primeira linha daquele exercício (e o cabeçalho, se esvaziar). */
+  const removerExercicio = (e: Exercicio) => {
+    const alvo = chaveNome(e.nome);
+    const i = texto.split("\n").findIndex((l) => ehItem(l) && chaveNome(partesDaLinha(l).nome) === alvo);
+    if (i !== -1) onTexto(removerLinha(texto, i));
+  };
 
   const abrir = (p: "salvos" | "exercicios" | "lista") => {
     setPainel((atual) => (atual === p ? null : p));
@@ -179,6 +197,8 @@ export default function MontarTreino({ texto, onTexto, salvos, exercicios, ignor
         <SeletorExercicios
           exercicios={exercicios}
           onEscolher={(e) => onTexto(inserirNoTexto(texto, e.area, e.nome))}
+          noTreino={noTreino}
+          onRemover={removerExercicio}
         />
       )}
 

@@ -165,8 +165,19 @@ O **mesmo** painel de montar treino serve o dia (aba Mês) e a biblioteca
      core num treino só). Se o treino de origem não tem cabeçalho próprio, ele
      entra sob o nome da sua categoria em maiúsculas.
    - **`exercício`** — sanfona com as áreas que têm exercícios cadastrados,
-     inserindo **agrupado por área** (algoritmo abaixo). A observação de
-     execução vai no `title` do botão. Sem catálogo, explique onde cadastrar.
+     inserindo **agrupado por área** (algoritmo abaixo). Dentro da área aberta,
+     os exercícios saem **repartidos por subgrupo e em ordem alfabética**, como
+     no catálogo (§7), com o nome sem o colchete. A observação de execução vai
+     no `title` do botão. Sem catálogo, explique onde cadastrar.
+
+     Um chip cujo exercício **já está no texto** fica marcado: fundo na cor da
+     área, `✓` antes do nome e um `×` depois; tocá-lo **tira** o exercício do
+     treino (a linha sai, e a seção que esvazia perde o título), em vez de
+     adicionar de novo. O cabeçalho da área conta quantos dela já entraram
+     (`2 ✓`), visível com a sanfona fechada. Estar ou não no treino é lido **do
+     próprio texto** a cada render — não há lista paralela —, então vale também
+     o que foi digitado à mão e apagar a linha no `ajustar` desmarca o chip na
+     hora. Sem `onRemover` (o seletor usado fora do montador), o chip só soma.
    - **`ajustar`** — desabilitado enquanto não há texto. Mostra o treino linha a
      linha: tocar numa linha edita **só aquela linha** (nome/séries); o `×`
      remove o exercício; o `×` de um **título remove a seção inteira**. Uma

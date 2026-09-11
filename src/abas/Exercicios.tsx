@@ -133,6 +133,35 @@ export function partirSubgrupo(nome: string): { grupo: string | null; nome: stri
  */
 const emOrdem = (a: string, b: string) => a.localeCompare(b, "pt-BR", { sensitivity: "base", numeric: true });
 
+/**
+ * Exercícios repartidos em: os sem subgrupo, que abrem a lista, e uma seção por
+ * subgrupo. Tudo em ordem alfabética — as seções entre si e os exercícios dentro
+ * de cada uma, pelo nome já sem o colchete. `nomeDe` existe para a tela que edita
+ * um exercício poder congelar o nome enquanto se digita.
+ */
+export function repartirPorSubgrupo(itens: Exercicio[], nomeDe: (e: Exercicio) => string = (e) => e.nome) {
+  const soltos: Exercicio[] = [];
+  const grupos = new Map<string, { rot: string; itens: Exercicio[] }>();
+  for (const e of itens) {
+    const { grupo } = partirSubgrupo(nomeDe(e));
+    if (!grupo) {
+      soltos.push(e);
+      continue;
+    }
+    // "[Medio]" e "[Médio]" são o mesmo subgrupo; vale a primeira grafia escrita
+    const chave = normalizar(grupo);
+    const achado = grupos.get(chave);
+    if (achado) achado.itens.push(e);
+    else grupos.set(chave, { rot: grupo, itens: [e] });
+  }
+  const porNome = (a: Exercicio, b: Exercicio) =>
+    emOrdem(partirSubgrupo(nomeDe(a)).nome, partirSubgrupo(nomeDe(b)).nome);
+  soltos.sort(porNome);
+  const secoes = [...grupos].map(([chave, g]) => ({ chave, ...g })).sort((a, b) => emOrdem(a.rot, b.rot));
+  secoes.forEach((s) => s.itens.sort(porNome));
+  return { soltos, secoes };
+}
+
 /** Força/core/aeróbico presentes no texto, lidos dos cabeçalhos de área. */
 export function tiposDoTexto(texto: string): Tipo[] {
   const achados = new Set<Tipo>();
@@ -180,34 +209,6 @@ export default function Exercicios({ exercicios, addEx, upEx, delEx }: Props) {
     addEx(e);
     abrirEdicao(e);
     setBusca("");
-  };
-
-  /**
-   * Exercícios da área repartidos em: os sem subgrupo, que abrem a lista, e uma
-   * seção por subgrupo. Tudo em ordem alfabética — as seções entre si e os
-   * exercícios dentro de cada uma, pelo nome já sem o colchete.
-   */
-  const repartir = (itens: Exercicio[]) => {
-    const soltos: Exercicio[] = [];
-    const grupos = new Map<string, { rot: string; itens: Exercicio[] }>();
-    for (const e of itens) {
-      const { grupo } = partirSubgrupo(nomeEstavel(e));
-      if (!grupo) {
-        soltos.push(e);
-        continue;
-      }
-      // "[Medio]" e "[Médio]" são o mesmo subgrupo; vale a primeira grafia escrita
-      const chave = normalizar(grupo);
-      const achado = grupos.get(chave);
-      if (achado) achado.itens.push(e);
-      else grupos.set(chave, { rot: grupo, itens: [e] });
-    }
-    const porNome = (a: Exercicio, b: Exercicio) =>
-      emOrdem(partirSubgrupo(nomeEstavel(a)).nome, partirSubgrupo(nomeEstavel(b)).nome);
-    soltos.sort(porNome);
-    const secoes = [...grupos].map(([chave, g]) => ({ chave, ...g })).sort((a, b) => emOrdem(a.rot, b.rot));
-    secoes.forEach((s) => s.itens.sort(porNome));
-    return { soltos, secoes };
   };
 
   /** Nome com o trecho buscado em destaque. */
@@ -368,7 +369,7 @@ export default function Exercicios({ exercicios, addEx, upEx, delEx }: Props) {
         if (buscando && itens.length === 0) return null;
         const t = tipoDaArea(area.id);
         const corArea = t ? cor(t) : C.soft;
-        const { soltos, secoes } = repartir(itens);
+        const { soltos, secoes } = repartirPorSubgrupo(itens, nomeEstavel);
         return (
           <div key={area.id} style={{ marginBottom: 18 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
