@@ -3,6 +3,10 @@ import type { AreaEx, Cat, Exercicio, Tipo } from "../types";
 import { FONTE } from "../temas";
 import { useTema } from "../tema-ctx";
 import { iso, uid } from "../dados";
+import {
+  acharTrecho, emOrdem, normalizar, partesDaLinha,
+  partirSubgrupo, partirSubgrupoEmEdicao,
+} from "../treino-texto";
 
 const hojeIso = () => {
   const d = new Date();
@@ -33,10 +37,21 @@ export const tipoDaArea = (a: AreaEx): "f" | "c" | null =>
 const ehCabecalho = (linha: string) =>
   AREAS.some((a) => linha.trim().toUpperCase() === a.rot.toUpperCase());
 
+/** Subgrupo de uma linha de item do treino, normalizado; null se não tem. */
+const subgrupoDaLinha = (linha: string) => {
+  const { grupo } = partirSubgrupo(partesDaLinha(linha).nome);
+  return grupo ? normalizar(grupo) : null;
+};
+
 /**
- * Insere um exercício no texto do treino agrupado pela área:
- * cria o cabeçalho (ex: "COSTAS") na primeira vez e, nas seguintes,
- * acrescenta ao fim da seção existente — mesmo fora de ordem.
+ * Insere um exercício no texto do treino agrupado pela área: cria o cabeçalho
+ * (ex: "COSTAS") na primeira vez e, nas seguintes, entra na seção que já existe
+ * — mesmo fora de ordem.
+ *
+ * Dentro da seção o exercício procura os seus: entra logo depois do último
+ * irmão do mesmo subgrupo, para que a seção fique com a mesma forma do catálogo
+ * (os sem subgrupo primeiro, depois um bloco por subgrupo) em vez de intercalar
+ * [Glúteo] e [Quadríceps] na ordem dos toques.
  */
 export function inserirNoTexto(texto: string, area: AreaEx, nome: string): string {
   const cabecalho = rotuloArea(area).toUpperCase();
@@ -52,17 +67,20 @@ export function inserirNoTexto(texto: string, area: AreaEx, nome: string): strin
   // fim da seção: linha em branco ou próximo cabeçalho de área
   let fim = idx + 1;
   while (fim < linhas.length && linhas[fim].trim() !== "" && !ehCabecalho(linhas[fim])) fim++;
-  linhas.splice(fim, 0, item);
+
+  const alvo = subgrupoDaLinha(item);
+  let pos = -1;
+  for (let i = idx + 1; i < fim; i++) {
+    if (linhas[i].trim().startsWith("-") && subgrupoDaLinha(linhas[i]) === alvo) pos = i + 1;
+  }
+  // sem irmão: um subgrupo novo abre bloco no fim; sem subgrupo, fica na frente
+  if (pos === -1) pos = alvo === null ? idx + 1 : fim;
+
+  linhas.splice(pos, 0, item);
   return linhas.join("\n");
 }
 
 export const rotuloArea = (a: AreaEx) => AREAS.find((x) => x.id === a)!.rot;
-
-/** Uma linha é cabeçalho quando está toda em maiúsculas e não é item de lista. */
-export const ehLinhaCabecalho = (linha: string) => {
-  const t = linha.trim();
-  return t.length >= 2 && !t.startsWith("-") && t === t.toUpperCase() && /\p{Lu}/u.test(t);
-};
 
 /**
  * Categoria sugerida pelos cabeçalhos presentes no texto.
@@ -82,56 +100,6 @@ export function sugerirCategoria(texto: string): Cat | null {
   if (temAerobico) return "aerobico";
   return null;
 }
-
-/**
- * Normaliza para busca: minúsculas e sem acento, preservando o mapa de volta
- * para o texto original (cada caractere normalizado sabe de que índice veio),
- * para conseguir destacar o trecho encontrado no nome com acentos.
- */
-function normalizarComMapa(s: string): { txt: string; mapa: number[] } {
-  let txt = "";
-  const mapa: number[] = [];
-  for (let i = 0; i < s.length; i++) {
-    const c = s[i].normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
-    for (const ch of c) {
-      txt += ch;
-      mapa.push(i);
-    }
-  }
-  return { txt, mapa };
-}
-
-const normalizar = (s: string) => normalizarComMapa(s).txt;
-
-/** Posição do termo dentro do nome original, ou null se não bater. */
-function acharTrecho(nome: string, termo: string): [number, number] | null {
-  const alvo = normalizar(termo);
-  if (!alvo) return null;
-  const { txt, mapa } = normalizarComMapa(nome);
-  const i = txt.indexOf(alvo);
-  if (i === -1) return null;
-  return [mapa[i], mapa[i + alvo.length - 1] + 1];
-}
-
-/**
- * Lê o subgrupo escrito no começo do nome — "[Superior] Supino inclinado" — e o
- * devolve separado. Só vale como subgrupo quando os colchetes e o resto do nome
- * têm conteúdo: "[Superior]" sozinho continua sendo o nome inteiro do exercício.
- */
-export function partirSubgrupo(nome: string): { grupo: string | null; nome: string } {
-  const m = nome.match(/^\s*\[([^\]]*)\]\s*(.*)$/);
-  if (!m) return { grupo: null, nome };
-  const grupo = m[1].trim();
-  const resto = m[2].trim();
-  if (!grupo || !resto) return { grupo: null, nome };
-  return { grupo, nome: resto };
-}
-
-/**
- * Ordem alfabética como se espera em português: sem pesar maiúsculas nem
- * acentos, e lendo número como número ("Prancha 2" antes de "Prancha 10").
- */
-const emOrdem = (a: string, b: string) => a.localeCompare(b, "pt-BR", { sensitivity: "base", numeric: true });
 
 /**
  * Exercícios repartidos em: os sem subgrupo, que abrem a lista, e uma seção por
@@ -188,14 +156,42 @@ export default function Exercicios({ exercicios, addEx, upEx, delEx }: Props) {
   const [editando, setEditando] = useState<string | null>(null);
   const [ancora, setAncora] = useState("");
   const [busca, setBusca] = useState("");
+  const [subgrupoNovo, setSubgrupoNovo] = useState<string | null>(null); // texto do campo; null = fechado
 
   // agrupar e ordenar pelo nome de quando a edição começou: senão o card
   // saltaria de seção — e de posição dentro dela — a cada letra digitada
   const abrirEdicao = (e: Exercicio) => {
     setEditando(e.id);
     setAncora(e.nome);
+    setSubgrupoNovo(null);
+  };
+  const fecharEdicao = () => {
+    setEditando(null);
+    setSubgrupoNovo(null);
   };
   const nomeEstavel = (e: Exercicio) => (e.id === editando ? ancora : e.nome);
+
+  /**
+   * Subgrupos que já existem na área, para oferecer como atalho. O próprio
+   * exercício em edição fica de fora: senão cada letra digitada dentro de um
+   * colchete viraria um subgrupo novo na lista, piscando embaixo do dedo.
+   */
+  const subgruposDaArea = (e: Exercicio) =>
+    repartirPorSubgrupo(exercicios.filter((x) => x.area === e.area && x.id !== e.id)).secoes.map((s) => s.rot);
+
+  /** Troca só o colchete do nome, preservando o que já foi digitado depois dele. */
+  const trocarSubgrupo = (e: Exercicio, grupo: string | null) => {
+    const { resto } = partirSubgrupoEmEdicao(e.nome);
+    const nome = resto.replace(/^\s+/, "");
+    // "gluteo" digitado à mão adota a grafia que a área já usa ("Glúteo"):
+    // dois subgrupos iguais escritos diferente viram um só
+    const canonico = grupo && (subgruposDaArea(e).find((g) => normalizar(g) === normalizar(grupo)) ?? grupo);
+    upEx(e.id, { nome: canonico ? `[${canonico}] ${nome}` : nome });
+    setSubgrupoNovo(null);
+  };
+
+  /** Um nome que é só o colchete ainda não nomeia exercício nenhum. */
+  const semNome = (nome: string) => !partirSubgrupoEmEdicao(nome).resto.trim();
 
   const termo = busca.trim();
   const buscando = termo !== "";
@@ -224,15 +220,92 @@ export default function Exercicios({ exercicios, addEx, upEx, delEx }: Props) {
     );
   };
 
+  /**
+   * Linha de subgrupos no cartão de edição: os que a área já tem viram atalho,
+   * para não ter de reescrever "[Glúteo]" à mão a cada exercício novo.
+   */
+  const seletorSubgrupo = (e: Exercicio, corArea: string) => {
+    const atual = partirSubgrupoEmEdicao(e.nome).grupo;
+    const existentes = subgruposDaArea(e);
+    // o subgrupo recém-criado ainda não está na área: entra na lista assim mesmo
+    const lista = atual && !existentes.some((g) => normalizar(g) === normalizar(atual))
+      ? [...existentes, atual].sort(emOrdem)
+      : existentes;
+
+    const botao = (rot: string, ligado: boolean, aoTocar: () => void, chave: string) => (
+      <button
+        key={chave}
+        aria-pressed={ligado}
+        onClick={aoTocar}
+        style={{
+          padding: "5px 10px", borderRadius: Math.max(3, tema.raioP - 2),
+          border: `1px solid ${ligado ? corArea : C.line}`,
+          background: ligado ? corArea + "26" : "transparent",
+          color: ligado ? C.ink : C.soft, fontWeight: ligado ? 600 : 400,
+          fontFamily: FONTE.sans, fontSize: 12, cursor: "pointer",
+        }}
+      >
+        {rot}
+      </button>
+    );
+
+    return (
+      <div style={{ marginBottom: 8 }}>
+        <div style={{ ...est.eyebrow, fontSize: 9, marginBottom: 5 }}>Subgrupo</div>
+        {subgrupoNovo === null ? (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+            {lista.map((g) =>
+              botao(g, !!atual && normalizar(g) === normalizar(atual), () =>
+                trocarSubgrupo(e, !!atual && normalizar(g) === normalizar(atual) ? null : g), g)
+            )}
+            {botao("+ novo", false, () => setSubgrupoNovo(""), "+novo")}
+          </div>
+        ) : (
+          <div style={{ display: "flex", gap: 6 }}>
+            <input
+              value={subgrupoNovo}
+              autoFocus
+              onChange={(ev) => setSubgrupoNovo(ev.target.value)}
+              onKeyDown={(ev) => {
+                if (ev.key === "Enter" && subgrupoNovo.trim()) trocarSubgrupo(e, subgrupoNovo.trim());
+                if (ev.key === "Escape") setSubgrupoNovo(null);
+              }}
+              placeholder="Novo subgrupo (ex: Glúteo)"
+              aria-label="Nome do novo subgrupo"
+              style={{ ...est.input, padding: "7px 10px", fontSize: 13 }}
+            />
+            <button
+              style={{ ...est.ghost, padding: "7px 11px", color: C.ink, borderColor: C.ink, opacity: subgrupoNovo.trim() ? 1 : 0.45 }}
+              disabled={!subgrupoNovo.trim()}
+              onClick={() => trocarSubgrupo(e, subgrupoNovo.trim())}
+            >
+              ok
+            </button>
+            <button style={{ ...est.ghost, padding: "7px 10px" }} onClick={() => setSubgrupoNovo(null)}>
+              ×
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   /** O exercício na lista: cartão de edição quando aberto, botão quando não. */
   const renderItem = (e: Exercicio, corArea: string) =>
     editando === e.id ? (
       <div key={e.id} style={{ ...est.card, padding: 12, marginBottom: 6, borderLeft: `3px solid ${corArea}` }}>
+        {seletorSubgrupo(e, corArea)}
         <input
-          value={e.nome}
+          value={partirSubgrupoEmEdicao(e.nome).resto}
           autoFocus
-          onChange={(ev) => upEx(e.id, { nome: ev.target.value })}
-          placeholder="Nome do exercício (ex: [Superior] supino inclinado)"
+          onChange={(ev) => {
+            // o colchete é do seletor acima; aqui digita-se só o nome. Digitar
+            // "[Novo] " à mão continua valendo: vira subgrupo e sobe para lá.
+            const grupo = partirSubgrupoEmEdicao(e.nome).grupo;
+            const valor = ev.target.value.replace(/^\s+/, "");
+            upEx(e.id, { nome: grupo ? `[${grupo}] ${valor}` : valor });
+          }}
+          placeholder="Nome do exercício (ex: agachamento livre)"
           style={{ ...est.input, marginBottom: 8, fontWeight: 600 }}
         />
         <input
@@ -261,9 +334,10 @@ export default function Exercicios({ exercicios, addEx, upEx, delEx }: Props) {
           <button
             style={{ flex: 1, padding: "9px", borderRadius: tema.raioP - 1, border: "none", background: C.ink, color: C.onDark, fontFamily: FONTE.mono, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer" }}
             onClick={() => {
-              // um exercício sem nome não serve para nada: descarta em vez de guardar vazio
-              if (!e.nome.trim()) delEx(e.id);
-              setEditando(null);
+              // sem nome não serve para nada — nem quando só o subgrupo foi
+              // escolhido: descarta em vez de guardar um "[Glúteo]" solto
+              if (semNome(e.nome)) delEx(e.id);
+              fecharEdicao();
             }}
           >
             Pronto
@@ -271,9 +345,9 @@ export default function Exercicios({ exercicios, addEx, upEx, delEx }: Props) {
           <button
             style={{ ...est.ghost, color: C.aero, borderColor: C.aero }}
             onClick={() => {
-              if (!e.nome.trim() || confirm(`Excluir "${e.nome}"?`)) {
+              if (semNome(e.nome) || confirm(`Excluir "${partirSubgrupo(e.nome).nome}"?`)) {
                 delEx(e.id);
-                setEditando(null);
+                fecharEdicao();
               }
             }}
           >

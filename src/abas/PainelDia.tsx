@@ -4,7 +4,8 @@ import { DIA_CURTO, FONTE, MESES, SEM } from "../temas";
 import { useTema } from "../tema-ctx";
 import { parseIso, uid } from "../dados";
 import { GRUPOS, ROT_CAT } from "../categorias";
-import ModalTreino, { progresso } from "./ModalTreino";
+import ModalTreino from "./ModalTreino";
+import { ehLinhaCabecalho, partesDaLinha, partirSubgrupo, progresso } from "../treino-texto";
 import MontarTreino from "./MontarTreino";
 import { sugerirCategoria, tiposDoTexto } from "./Exercicios";
 
@@ -144,21 +145,19 @@ export default function PainelDia({ k, dia, ags, salvos, exercicios, setDia, add
       >
         {linhas.slice(0, MAX_LINHAS_PREVIA).map((l, i) => {
           const t = l.trim();
-          const ehTitulo = !t.startsWith("-") && t === t.toUpperCase() && /\p{Lu}/u.test(t);
-          if (ehTitulo) {
+          if (ehLinhaCabecalho(t)) {
             return (
               <div key={i} style={{ fontFamily: FONTE.mono, fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: C.soft, margin: i === 0 ? "0 0 3px" : "8px 0 3px" }}>
                 {t}
               </div>
             );
           }
-          const conteudo = t.replace(/^-\s*/, "");
-          const sep = conteudo.indexOf("—");
-          const nome = sep === -1 ? conteudo : conteudo.slice(0, sep).trim();
-          const det = sep === -1 ? "" : conteudo.slice(sep + 1).trim();
+          // a prévia é curta: mostra o nome sem o colchete, sem gastar linha com
+          // subtítulo de subgrupo — a tela cheia é que separa por subgrupo
+          const { nome, detalhe: det } = partesDaLinha(t);
           return (
             <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 13, lineHeight: 1.6 }}>
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nome}</span>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{partirSubgrupo(nome).nome}</span>
               {det && <span style={{ ...est.num, fontSize: 12, color: C.soft, flexShrink: 0 }}>{det}</span>}
             </div>
           );

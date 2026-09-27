@@ -2,7 +2,8 @@ import { useState } from "react";
 import type { AreaEx, Exercicio } from "../types";
 import { FONTE } from "../temas";
 import { useTema } from "../tema-ctx";
-import { AREAS, partirSubgrupo, repartirPorSubgrupo, tipoDaArea } from "./Exercicios";
+import { AREAS, repartirPorSubgrupo, tipoDaArea } from "./Exercicios";
+import { partirSubgrupo } from "../treino-texto";
 
 interface Props {
   exercicios: Exercicio[];

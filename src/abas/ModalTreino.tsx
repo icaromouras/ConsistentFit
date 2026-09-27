@@ -3,6 +3,7 @@ import type { Exercicio } from "../types";
 import { FONTE } from "../temas";
 import { useTema } from "../tema-ctx";
 import { AREAS, rotuloArea, tipoDaArea } from "./Exercicios";
+import { anunciosDeSubgrupo, chaveNome, partesDaLinha, partirSubgrupo, progresso } from "../treino-texto";
 
 interface Props {
   titulo: string;
@@ -24,9 +25,6 @@ interface Props {
 const SEGURAR_MS = 450;
 const TOLERANCIA_PX = 12; // arrastar mais que isso é rolagem, não "segurar"
 
-/** Chave de comparação de nomes de exercício, entre o texto do treino e o catálogo. */
-export const chaveNome = (n: string) => n.trim().toLowerCase();
-
 const areaDaLinha = (linha: string) =>
   AREAS.find((a) => linha.trim().toUpperCase() === a.rot.toUpperCase());
 
@@ -35,27 +33,6 @@ const ehTituloGenerico = (linha: string) => {
   const t = linha.trim();
   return t.length >= 2 && t.length <= 40 && !t.startsWith("-") && /\p{Lu}/u.test(t) && !/\p{Ll}/u.test(t);
 };
-
-/** Separa "- Nome — 4x10" em nome e detalhe. */
-export const partesDaLinha = (linha: string) => {
-  const conteudo = linha.trim().replace(/^-\s*/, "");
-  const sep = conteudo.indexOf("—");
-  return {
-    nome: sep === -1 ? conteudo : conteudo.slice(0, sep).trim(),
-    detalhe: sep === -1 ? "" : conteudo.slice(sep + 1).trim(),
-  };
-};
-
-/** Quantos exercícios o treino tem e quantos já foram feitos. */
-export function progresso(texto: string, feitos: string[]) {
-  const nomes = texto
-    .split("\n")
-    .filter((l) => l.trim().startsWith("-"))
-    .map((l) => chaveNome(partesDaLinha(l).nome))
-    .filter(Boolean);
-  const marcados = new Set(feitos);
-  return { total: nomes.length, feitos: nomes.filter((n) => marcados.has(n)).length };
-}
 
 const DIA_MES = (iso: string) => {
   const [, m, d] = iso.split("-");
@@ -143,6 +120,7 @@ export default function ModalTreino({
   };
 
   const linhas = texto.split("\n");
+  const subgrupos = anunciosDeSubgrupo(linhas);
   const conta = progresso(texto, feitos ?? []);
   const temAlgumaObs = !editando && linhas.some((l) => {
     if (!l.trim().startsWith("-")) return false;
@@ -172,11 +150,20 @@ export default function ModalTreino({
 
         if (t.startsWith("-")) {
           const { nome, detalhe: det } = partesDaLinha(t);
+          // o subgrupo vira subtítulo da seção; o nome aparece sem o colchete.
+          // As comparações seguem no nome inteiro, que é o que casa com o catálogo.
+          const visivel = partirSubgrupo(nome).nome;
           const ex = acharExercicio(nome);
           const feito = marcados.has(chaveNome(nome));
           const editandoCarga = !!ex && cargaEdit === ex.id;
+          const anuncio = subgrupos[i];
           return (
             <div key={i} style={{ padding: "7px 0", borderBottom: `1px solid ${C.deep}` }}>
+              {anuncio && (
+                <div style={{ ...est.eyebrow, fontSize: 9.5, letterSpacing: "0.12em", margin: "4px 0 6px", color: C.soft }}>
+                  {anuncio}
+                </div>
+              )}
               <div
                 style={{
                   display: "flex", alignItems: "baseline", gap: 10,
@@ -200,7 +187,7 @@ export default function ModalTreino({
                   <button
                     onClick={() => alternarFeito(nome)}
                     aria-pressed={feito}
-                    aria-label={`${feito ? "Desmarcar" : "Marcar como feito"}: ${nome}`}
+                    aria-label={`${feito ? "Desmarcar" : "Marcar como feito"}: ${visivel}`}
                     style={{
                       flexShrink: 0, width: 24, height: 24, alignSelf: "center", cursor: "pointer",
                       borderRadius: Math.max(4, tema.raioP - 3),
@@ -223,7 +210,7 @@ export default function ModalTreino({
                     cursor: marcavel ? "pointer" : ex ? "pointer" : "default",
                   }}
                 >
-                  {nome}
+                  {visivel}
                   {ex?.obs?.trim() && (
                     <span aria-hidden style={{ ...est.num, fontSize: 10, color: C.soft, marginLeft: 6, border: `1px solid ${C.line}`, borderRadius: "50%", width: 15, height: 15, display: "inline-flex", alignItems: "center", justifyContent: "center", verticalAlign: "2px" }}>
                       i
@@ -249,7 +236,7 @@ export default function ModalTreino({
                           if (e.key === "Escape") { e.stopPropagation(); setCargaEdit(null); }
                         }}
                         placeholder="ex: 20 kg, placa 5"
-                        aria-label={`Peso de ${nome}`}
+                        aria-label={`Peso de ${visivel}`}
                         style={{ ...est.input, padding: "7px 9px", fontSize: 14, maxWidth: 200 }}
                       />
                       <button style={{ ...est.ghost, padding: "7px 11px", color: C.ink, borderColor: C.ink }} onClick={() => gravarCarga(ex)}>
@@ -259,7 +246,7 @@ export default function ModalTreino({
                   ) : (
                     <button
                       onClick={() => abrirCarga(ex)}
-                      aria-label={ex.carga ? `Mudar o peso de ${nome}` : `Anotar o peso de ${nome}`}
+                      aria-label={ex.carga ? `Mudar o peso de ${visivel}` : `Anotar o peso de ${visivel}`}
                       style={{
                         ...est.num, fontSize: 11, cursor: "pointer",
                         padding: "3px 8px", borderRadius: Math.max(3, tema.raioP - 3),
@@ -408,7 +395,7 @@ export default function ModalTreino({
         >
           <div
             role="dialog"
-            aria-label={`Execução de ${detalhe.nome}`}
+            aria-label={`Execução de ${partirSubgrupo(detalhe.nome).nome}`}
             onClick={(e) => e.stopPropagation()}
             style={{
               width: "100%", maxWidth: 620, background: C.panel,
@@ -420,10 +407,13 @@ export default function ModalTreino({
           >
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
               <i style={{ width: 10, height: 10, borderRadius: 3, flexShrink: 0, display: "inline-block", background: tipoDaArea(detalhe.area) ? cor(tipoDaArea(detalhe.area)!) : C.soft }} />
-              <span style={{ ...est.eyebrow, fontSize: 10 }}>{rotuloArea(detalhe.area)}</span>
+              <span style={{ ...est.eyebrow, fontSize: 10 }}>
+                {rotuloArea(detalhe.area)}
+                {partirSubgrupo(detalhe.nome).grupo && ` · ${partirSubgrupo(detalhe.nome).grupo}`}
+              </span>
             </div>
             <div style={{ fontSize: 19, fontWeight: 700, letterSpacing: "-0.02em", color: C.ink, marginBottom: 10 }}>
-              {detalhe.nome}
+              {partirSubgrupo(detalhe.nome).nome}
             </div>
 
             {detalhe.carga && (

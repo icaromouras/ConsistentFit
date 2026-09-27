@@ -170,6 +170,12 @@ O **mesmo** painel de montar treino serve o dia (aba Mês) e a biblioteca
      no catálogo (§7), com o nome sem o colchete. A observação de execução vai
      no `title` do botão. Sem catálogo, explique onde cadastrar.
 
+     Ao inserir, o exercício procura os seus dentro da seção da área: entra
+     logo depois do último irmão do **mesmo subgrupo**, de modo que a seção
+     fique com a mesma forma do catálogo (os sem subgrupo primeiro, depois um
+     bloco por subgrupo) em vez de intercalar `[Glúteo]` e `[Quadríceps]` na
+     ordem dos toques. Sem irmão, um subgrupo novo abre bloco no fim da seção.
+
      Um chip cujo exercício **já está no texto** fica marcado: fundo na cor da
      área, `✓` antes do nome e um `×` depois; tocá-lo **tira** o exercício do
      treino (a linha sai, e a seção que esvazia perde o título), em vez de
@@ -239,7 +245,9 @@ Cada treino aparece num card destacado com:
 - **Prévia formatada** do treino (não uma caixa de edição): cabeçalhos de área
   em maiúsculas, exercícios como linhas com as séries alinhadas à direita em
   fonte monoespaçada. Limite a 6 linhas e mostre `+N linhas — toque para ver
-  tudo`. Tocar na prévia abre a tela cheia.
+  tudo`. Tocar na prévia abre a tela cheia. O nome sai **sem o colchete** de
+  subgrupo; aqui não entram subtítulos de subgrupo — é prévia, e cada subtítulo
+  custaria uma das 6 linhas. Quem separa por subgrupo é a tela cheia (§6).
 - **guardar** abre nome + categoria (pré-sugerida) e grava na biblioteca. Com
   vários treinos no mesmo dia, só um painel fica aberto por vez, e a mensagem de
   confirmação deve carregar o id do treino para aparecer sob o card certo.
@@ -271,6 +279,15 @@ ao marcar o primeiro exercício.
 - **Visualização** (padrão quando há texto): interpreta o texto e o formata.
   - Linha que corresponde ao nome de uma área ⇒ **título de seção**, com o
     quadrado colorido da área e uma régua horizontal.
+  - Exercício cujo nome traz `[Subgrupo]` ⇒ **subtítulo** miúdo em maiúsculas
+    antes dele, e o nome desenhado sem o colchete. O subtítulo sai uma vez por
+    sequência, não a cada linha: anuncia quando o subgrupo muda e cala enquanto
+    ele continua, e um cabeçalho zera o estado (cada área anuncia os seus).
+    Anunciar por sequência, e não reagrupando, mantém a tela na mesma ordem do
+    texto — quem edita o texto reconhece o que vê.
+  - O colchete é só apresentação: **todas as comparações seguem no nome
+    inteiro**, que é o que casa a linha com o catálogo (observação, carga) e o
+    que vai para as marcações de feito.
   - Qualquer outra linha **toda em maiúsculas** (2–40 caracteres, sem começar
     com `-`) ⇒ também vira título — assim o usuário cria seções próprias como
     `OBSERVAÇÕES`.
@@ -378,6 +395,19 @@ o texto do treino e o que casa com o catálogo na tela cheia (§6).
 Enquanto um exercício está aberto para edição, agrupe e ordene pelo nome de
 **quando a edição começou**: senão o card saltaria de seção, e de posição dentro
 dela, a cada letra digitada. Ele se acomoda no lugar certo ao fechar com Pronto.
+
+**O colchete não se digita.** O cartão de edição abre com uma linha **Subgrupo**:
+um chip por subgrupo que a área já tem, mais `+ novo`. Tocar num chip põe o
+colchete no nome; tocar no chip aceso tira. `+ novo` troca a linha por um campo
+(Enter ou `ok` confirma, Esc ou `×` desiste). O campo de nome mostra e edita
+**só o nome**, sem o colchete — quem digitar `[Tibial] ` ali mesmo continua
+criando o subgrupo: ele é reconhecido na hora e sobe para os chips.
+
+A lista de chips vem dos **outros** exercícios da área, nunca do que está sendo
+editado: senão cada letra digitada dentro de um colchete viraria um chip novo
+piscando embaixo do dedo. Um subgrupo digitado com outra grafia (`gluteo`) adota
+a que a área já usa (`Glúteo`). E um exercício que ficou só com o subgrupo, sem
+nome, é **descartado** ao fechar, como já acontece com o nome vazio.
 
 Um exercício tem **nome**, **observação de execução** (opcional) — é essa
 observação que aparece no "segurar" da tela cheia — e a **carga** (opcional),

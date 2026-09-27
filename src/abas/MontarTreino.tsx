@@ -4,8 +4,8 @@ import { FONTE, fundoTipos } from "../temas";
 import { useTema } from "../tema-ctx";
 import { GRUPOS, ROT_CAT } from "../categorias";
 import SeletorExercicios from "./SeletorExercicios";
-import { ehLinhaCabecalho, inserirNoTexto } from "./Exercicios";
-import { chaveNome, partesDaLinha } from "./ModalTreino";
+import { inserirNoTexto } from "./Exercicios";
+import { chaveNome, ehLinhaCabecalho, partesDaLinha } from "../treino-texto";
 
 /** Remonta o texto descartando cabeçalhos que ficaram sem nenhum conteúdo embaixo. */
 function limparTexto(linhas: string[]): string {
